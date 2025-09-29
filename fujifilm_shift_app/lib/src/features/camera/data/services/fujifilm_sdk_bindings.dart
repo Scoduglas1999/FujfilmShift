@@ -28,7 +28,6 @@ const int XSDK_PRIORITY_CAMERA = 0x0001;
 const int XSDK_PRIORITY_PC = 0x0002;
 
 // Drive Mode
-const int XSDK_DRIVE_MODE_S = 1; // Single Shot
 const int XSDK_DRIVE_MODE_PIXELSHIFTMULTISHOT = 16;
 
 // Release Mode
@@ -44,6 +43,8 @@ const int XSDK_IMAGEFORMAT_NONE = 0;
 const int API_CODE_Init = 0x1001;
 const int API_CODE_Exit = 0x1002;
 const int API_CODE_CapPixelShiftSettings = 0x407A;
+const int API_CODE_StartLiveView = 0x3301;
+const int API_CODE_StopLiveView = 0x3302;
 
 // Device Information Structure
 final class XSDK_DeviceInformation extends Struct {
@@ -400,6 +401,14 @@ typedef _XSDK_GetPixelShiftInfoNative = Int32 Function(
 typedef XSDK_GetPixelShiftInfo = int Function(
     Pointer<Void> hCamera, Pointer<XSDK_PixelShiftInformation> pInfo);
 
+// Live View Bindings
+typedef _XSDK_StartLiveViewNative = Int32 Function(Pointer<Void> hCamera);
+typedef XSDK_StartLiveView = int Function(Pointer<Void> hCamera);
+
+typedef _XSDK_StopLiveViewNative = Int32 Function(Pointer<Void> hCamera);
+typedef XSDK_StopLiveView = int Function(Pointer<Void> hCamera);
+
+
 // File Download Bindings
 typedef _XSDK_GetNumContentsNative = Int32 Function(
     Pointer<Void> hCamera, Pointer<Int32> plNumContents);
@@ -513,6 +522,8 @@ class FujifilmSDK {
       _lib.lookup<NativeFunction<_XSDK_SetDriveModeNative>>('XSDK_SetDriveMode').asFunction<XSDK_SetDriveMode>();
 
   // Mode functions
+  static final XSDK_CapMode _xsdkCapMode =
+      _lib.lookup<NativeFunction<_XSDK_CapModeNative>>('XSDK_CapMode').asFunction<XSDK_CapMode>();
   static final XSDK_SetMode _xsdkSetMode =
       _lib.lookup<NativeFunction<_XSDK_SetModeNative>>('XSDK_SetMode').asFunction<XSDK_SetMode>();
   static final XSDK_GetMode _xsdkGetMode =
@@ -533,6 +544,14 @@ class FujifilmSDK {
       .lookup<NativeFunction<_XSDK_GetPixelShiftInfoNative>>(
           'XSDK_GetPixelShiftInfo')
       .asFunction<XSDK_GetPixelShiftInfo>();
+
+  static final XSDK_StartLiveView _xsdkStartLiveView = _lib
+      .lookup<NativeFunction<_XSDK_StartLiveViewNative>>('XSDK_StartLiveView')
+      .asFunction<XSDK_StartLiveView>();
+
+  static final XSDK_StopLiveView _xsdkStopLiveView = _lib
+      .lookup<NativeFunction<_XSDK_StopLiveViewNative>>('XSDK_StopLiveView')
+      .asFunction<XSDK_StopLiveView>();
 
   // File Download functions
   static final XSDK_GetNumContents _xsdkGetNumContents = _lib
@@ -661,10 +680,6 @@ class FujifilmSDK {
     return _xsdkSetDriveMode(hCamera, lMode);
   }
 
-  static int xsdkSetMode(Pointer<Void> hCamera, int lMode) {
-    return _xsdkSetMode(hCamera, lMode);
-  }
-
   static int xsdkGetMode(Pointer<Void> hCamera, Pointer<Int32> plMode) {
     return _xsdkGetMode(hCamera, plMode);
   }
@@ -681,6 +696,14 @@ class FujifilmSDK {
   static int xsdkGetPixelShiftInfo(
       Pointer<Void> hCamera, Pointer<XSDK_PixelShiftInformation> pInfo) {
     return _xsdkGetPixelShiftInfo(hCamera, pInfo);
+  }
+
+  static int xsdkStartLiveView(Pointer<Void> hCamera) {
+    return _xsdkStartLiveView(hCamera);
+  }
+
+  static int xsdkStopLiveView(Pointer<Void> hCamera) {
+    return _xsdkStopLiveView(hCamera);
   }
 
   static int xsdkGetNumContents(

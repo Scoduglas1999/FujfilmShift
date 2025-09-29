@@ -578,32 +578,41 @@ class FujifilmCameraService implements CameraService {
     }
 
     try {
+      print('[Pixel Shift] Starting process...');
       _pixelShiftStateController
           .add(const PixelShiftState(status: PixelShiftStatus.capturing));
 
       // 1. Set PC Priority Mode
-      // This is necessary to control the camera from the PC.
+      print('[Pixel Shift] 1. Setting PC priority mode...');
       final pcPriorityResult =
           FujifilmSDK.xsdkSetPriorityMode(_cameraHandle!, XSDK_PRIORITY_PC);
       if (pcPriorityResult != 0) {
         final errorDetails = _getSDKErrorDetails(_cameraHandle);
+        print(
+            '[Pixel Shift] FAILED to set PC priority mode. Details: $errorDetails');
         throw Exception(
             'Failed to set PC priority mode. Error: $pcPriorityResult. Details: $errorDetails');
       }
+      print('[Pixel Shift] PC priority mode set successfully.');
       await Future.delayed(
           const Duration(milliseconds: 200)); // Allow time for mode switch
 
       // 2. Set camera's drive mode to Pixel Shift
+      print('[Pixel Shift] 2. Setting drive mode to Pixel Shift...');
       final driveModeResult = FujifilmSDK.xsdkSetDriveMode(
           _cameraHandle!, _pixelShiftDriveModeValue!);
       if (driveModeResult != 0) {
         final errorDetails = _getSDKErrorDetails(_cameraHandle);
+        print(
+            '[Pixel Shift] FAILED to set Pixel Shift drive mode. Details: $errorDetails');
         throw Exception(
             'Failed to set Pixel Shift drive mode. Error: $driveModeResult. Details: $errorDetails');
       }
-      await Future.delayed(const Duration(milliseconds: 100)); // Short delay
+      await Future.delayed(const Duration(milliseconds: 250)); // Short delay
+      print('[Pixel Shift] Drive mode set to Pixel Shift successfully.');
 
       // 3. Start shooting by triggering the shutter release
+      print('[Pixel Shift] 3. Triggering shutter release...');
       final releaseResult = FujifilmSDK.xsdkRelease(
         _cameraHandle!,
         XSDK_RELEASE_PIXELSHIFT,
@@ -612,19 +621,25 @@ class FujifilmCameraService implements CameraService {
       );
       if (releaseResult != 0) {
         final errorDetails = _getSDKErrorDetails(_cameraHandle);
+        print('[Pixel Shift] FAILED to trigger shutter. Details: $errorDetails');
         throw Exception(
             'Failed to start Pixel Shift shooting. Error: $releaseResult. Details: $errorDetails');
       }
+      print('[Pixel Shift] Shutter triggered successfully.');
 
       // 4. Download images from buffer
+      print('[Pixel Shift] 4. Starting image download...');
       await _downloadImagesFromBuffer();
+      print('[Pixel Shift] Image download complete.');
     } catch (e) {
+      print('[Pixel Shift] An error occurred during the process: $e');
       _pixelShiftStateController.add(PixelShiftState(
         status: PixelShiftStatus.error,
         error: e.toString(),
       ));
       rethrow;
     } finally {
+      print('[Pixel Shift] Cleaning up and resetting camera state...');
       // It's good practice to return control to the camera after the operation
       // and reset the drive mode if needed.
       FujifilmSDK.xsdkSetMode(_cameraHandle!, XSDK_MODE_S);
@@ -632,6 +647,7 @@ class FujifilmCameraService implements CameraService {
       FujifilmSDK.xsdkSetDriveMode(_cameraHandle!, XSDK_DRIVE_MODE_S);
       await Future.delayed(const Duration(milliseconds: 100));
       FujifilmSDK.xsdkSetPriorityMode(_cameraHandle!, XSDK_PRIORITY_CAMERA);
+      print('[Pixel Shift] Camera state reset.');
     }
   }
 
