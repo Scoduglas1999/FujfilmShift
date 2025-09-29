@@ -1,5 +1,5 @@
-import "package:flutter/material.dart";
-import "package:google_fonts/google_fonts.dart";
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Color palette
@@ -44,12 +44,9 @@ class AppTheme {
         secondary: secondaryColor,
         tertiary: accentColor,
         surface: surfaceColor,
-        background: backgroundColor,
         error: Color(0xFFEF4444),
-        onPrimary: onPrimaryColor,
         onSecondary: onSecondaryColor,
         onSurface: onSurfaceColor,
-        onBackground: onSurfaceColor,
       ),
 
       // AppBar theme
@@ -66,12 +63,12 @@ class AppTheme {
       ),
 
       // Card theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surfaceColor,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: surfaceVariant.withOpacity(0.5), width: 1),
+          side: BorderSide(color: surfaceVariant.withOpacity(0.5)),
         ),
       ),
 
@@ -139,12 +136,10 @@ class AppTheme {
         secondary: secondaryLight,
         tertiary: accentLight,
         surface: surfaceDark,
-        background: backgroundDark,
         error: Color(0xFFF87171),
         onPrimary: Color(0xFF1E293B),
         onSecondary: Color(0xFF1E293B),
         onSurface: onSurfaceDark,
-        onBackground: onSurfaceDark,
       ),
 
       // AppBar theme
@@ -161,12 +156,12 @@ class AppTheme {
       ),
 
       // Card theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surfaceDark,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: surfaceVariantDark.withOpacity(0.5), width: 1),
+          side: BorderSide(color: surfaceVariantDark.withOpacity(0.5)),
         ),
       ),
 
@@ -174,7 +169,7 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryLight,
-          foregroundColor: Color(0xFF1E293B),
+          foregroundColor: const Color(0xFF1E293B),
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(

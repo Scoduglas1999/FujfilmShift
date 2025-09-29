@@ -1,11 +1,11 @@
-import "package:flutter/material.dart";
+import 'package:flutter/material.dart';
 
 class WelcomeHeader extends StatelessWidget {
   const WelcomeHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
-    var theme = Theme.of(context);
+    ThemeData theme = Theme.of(context);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -13,7 +13,7 @@ class WelcomeHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: <dynamic>[
+          colors: <Color>[
             theme.colorScheme.primary.withOpacity(0.1),
             theme.colorScheme.secondary.withOpacity(0.05),
           ],
@@ -21,14 +21,13 @@ class WelcomeHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: theme.colorScheme.primary.withOpacity(0.2),
-          width: 1,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: <dynamic>[
+        children: <Widget>[
           Row(
-            children: <dynamic>[
+            children: <Widget>[
               Container(
                 width: 48,
                 height: 48,
@@ -46,16 +45,16 @@ class WelcomeHeader extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <dynamic>[
+                  children: <Widget>[
                     Text(
-                      "Welcome to Fujifilm Shift",
+                      'Welcome to Fujifilm Shift',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Professional pixel-shift photography workflow",
+                      'Professional pixel-shift photography workflow',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -73,7 +72,7 @@ class WelcomeHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              "Ready to capture",
+              'Ready to capture',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w500,

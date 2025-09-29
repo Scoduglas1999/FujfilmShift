@@ -1,31 +1,31 @@
-import "package:flutter/material.dart";
-import "package:flutter_riverpod/flutter_riverpod.dart";
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import "../../providers/theme_provider.dart";
+import 'package:fujifilm_shift_app/src/core/providers/theme_provider.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    var theme = Theme.of(context);
-    var themeNotifier = ref.watch(themeProvider.notifier);
+    ThemeData theme = Theme.of(context);
+    final themeNotifier = ref.watch(themeProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Settings"),
+        title: const Text('Settings'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: ListView(
         padding: const EdgeInsets.all(24),
-        children: <dynamic>[
+        children: <Widget>[
           // Appearance section
           _SettingsSection(
-            title: "Appearance",
-            children: <dynamic>[
+            title: 'Appearance',
+            children: <Widget>[
               _SettingsTile(
-                title: "Theme",
+                title: 'Theme',
                 subtitle: _getThemeText(ref),
                 leading: Icon(
                   _getThemeIcon(ref),
@@ -33,23 +33,23 @@ class SettingsPage extends ConsumerWidget {
                 ),
                 trailing: PopupMenuButton<ThemeMode>(
                   onSelected: themeNotifier.setTheme,
-                  itemBuilder: (context) => <dynamic>[
+                  itemBuilder: (BuildContext context) => <PopupMenuEntry<ThemeMode>>[
                     const PopupMenuItem(
                       value: ThemeMode.system,
-                      child: Text("System"),
+                      child: Text('System'),
                     ),
                     const PopupMenuItem(
                       value: ThemeMode.light,
-                      child: Text("Light"),
+                      child: Text('Light'),
                     ),
                     const PopupMenuItem(
                       value: ThemeMode.dark,
-                      child: Text("Dark"),
+                      child: Text('Dark'),
                     ),
                   ],
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: <dynamic>[
+                    children: <Widget>[
                       Text(
                         _getThemeText(ref),
                         style: theme.textTheme.bodyMedium?.copyWith(
@@ -72,25 +72,25 @@ class SettingsPage extends ConsumerWidget {
 
           // Camera section
           _SettingsSection(
-            title: "Camera",
-            children: <dynamic>[
+            title: 'Camera',
+            children: <Widget>[
               _SettingsTile(
-                title: "Auto-connect",
-                subtitle: "Automatically connect to last used camera",
+                title: 'Auto-connect',
+                subtitle: 'Automatically connect to last used camera',
                 leading: Icon(
                   Icons.wifi,
                   color: theme.colorScheme.primary,
                 ),
                 trailing: Switch(
                   value: false, // TODO: Get from provider
-                  onChanged: (value) {
+                  onChanged: (bool value) {
                     // TODO: Update provider
                   },
                 ),
               ),
               _SettingsTile(
-                title: "Download Location",
-                subtitle: "Choose where to save captured images",
+                title: 'Download Location',
+                subtitle: 'Choose where to save captured images',
                 leading: Icon(
                   Icons.folder_outlined,
                   color: theme.colorScheme.primary,
@@ -106,25 +106,25 @@ class SettingsPage extends ConsumerWidget {
 
           // Processing section
           _SettingsSection(
-            title: "Processing",
-            children: <dynamic>[
+            title: 'Processing',
+            children: <Widget>[
               _SettingsTile(
-                title: "Auto-stitch",
-                subtitle: "Automatically stitch images after download",
+                title: 'Auto-stitch',
+                subtitle: 'Automatically stitch images after download',
                 leading: Icon(
                   Icons.auto_awesome,
                   color: theme.colorScheme.primary,
                 ),
                 trailing: Switch(
                   value: true, // TODO: Get from provider
-                  onChanged: (value) {
+                  onChanged: (bool value) {
                     // TODO: Update provider
                   },
                 ),
               ),
               _SettingsTile(
-                title: "Output Format",
-                subtitle: "TIFF",
+                title: 'Output Format',
+                subtitle: 'TIFF',
                 leading: Icon(
                   Icons.image_outlined,
                   color: theme.colorScheme.primary,
@@ -140,19 +140,19 @@ class SettingsPage extends ConsumerWidget {
 
           // About section
           _SettingsSection(
-            title: "About",
-            children: <dynamic>[
+            title: 'About',
+            children: <Widget>[
               _SettingsTile(
-                title: "Version",
-                subtitle: "1.0.0",
+                title: 'Version',
+                subtitle: '1.0.0',
                 leading: Icon(
                   Icons.info_outline,
                   color: theme.colorScheme.primary,
                 ),
               ),
               _SettingsTile(
-                title: "Help & Support",
-                subtitle: "Get help and contact support",
+                title: 'Help & Support',
+                subtitle: 'Get help and contact support',
                 leading: Icon(
                   Icons.help_outline,
                   color: theme.colorScheme.primary,
@@ -169,19 +169,21 @@ class SettingsPage extends ConsumerWidget {
   }
 
   String _getThemeText(WidgetRef ref) {
-    var theme = ref.watch(themeProvider);
+    final theme = ref.watch(themeProvider);
     switch (theme) {
       case ThemeMode.system:
-        return "System";
+        return 'System';
       case ThemeMode.light:
-        return "Light";
+        return 'Light';
       case ThemeMode.dark:
-        return "Dark";
+        return 'Dark';
+      default:
+        return 'System';
     }
   }
 
   IconData _getThemeIcon(WidgetRef ref) {
-    var theme = ref.watch(themeProvider);
+    final theme = ref.watch(themeProvider);
     switch (theme) {
       case ThemeMode.system:
         return Icons.brightness_auto;
@@ -189,6 +191,8 @@ class SettingsPage extends ConsumerWidget {
         return Icons.light_mode;
       case ThemeMode.dark:
         return Icons.dark_mode;
+      default:
+        return Icons.brightness_auto;
     }
   }
 }
@@ -204,11 +208,11 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var theme = Theme.of(context);
+    ThemeData theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: <dynamic>[
+      children: <Widget>[
         Text(
           title,
           style: theme.textTheme.titleMedium?.copyWith(
@@ -223,7 +227,6 @@ class _SettingsSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
               color: theme.colorScheme.outline.withOpacity(0.2),
-              width: 1,
             ),
           ),
           child: Column(
@@ -252,7 +255,7 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var theme = Theme.of(context);
+    ThemeData theme = Theme.of(context);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),

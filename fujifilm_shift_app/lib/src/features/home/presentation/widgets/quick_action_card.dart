@@ -1,44 +1,44 @@
-import "package:flutter/material.dart";
+import 'package:flutter/material.dart';
 
 class QuickActionCard extends StatelessWidget {
   const QuickActionCard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    var theme = Theme.of(context);
+    ThemeData theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: <dynamic>[
+      children: <Widget>[
         Text(
-          "Quick Actions",
+          'Quick Actions',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 16),
         Row(
-          children: <dynamic>[
+          children: <Widget>[
             Expanded(
               child: _ActionButton(
                 icon: Icons.connected_tv,
-                label: "Connect Camera",
-                onTap: () => Navigator.pushNamed(context, "/camera"),
+                label: 'Connect Camera',
+                onTap: () => Navigator.pushNamed(context, '/camera'),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _ActionButton(
                 icon: Icons.settings_outlined,
-                label: "Settings",
-                onTap: () => Navigator.pushNamed(context, "/settings"),
+                label: 'Settings',
+                onTap: () => Navigator.pushNamed(context, '/settings'),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _ActionButton(
                 icon: Icons.help_outline,
-                label: "Help",
+                label: 'Help',
                 onTap: _showHelp,
               ),
             ),
@@ -66,7 +66,7 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var theme = Theme.of(context);
+    ThemeData theme = Theme.of(context);
 
     return Material(
       color: Colors.transparent,
@@ -80,11 +80,10 @@ class _ActionButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: theme.colorScheme.outline.withOpacity(0.2),
-              width: 1,
             ),
           ),
           child: Column(
-            children: <dynamic>[
+            children: <Widget>[
               Icon(
                 icon,
                 size: 24,
