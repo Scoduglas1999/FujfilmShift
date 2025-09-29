@@ -28,7 +28,24 @@ const int XSDK_PRIORITY_CAMERA = 0x0001;
 const int XSDK_PRIORITY_PC = 0x0002;
 
 // Drive Mode
-const int XSDK_DRIVE_MODE_PIXELSHIFTMULTISHOT = 16;
+const int XSDK_DRIVE_MODE_CH = 0x0002;
+const int XSDK_DRIVE_MODE_CL = 0x0003;
+const int XSDK_DRIVE_MODE_S = 0x0004;
+const int XSDK_DRIVE_MODE_MULTI_EXPOSURE = 0x0005;
+const int XSDK_DRIVE_MODE_ADVFILTER = 0x0006;
+const int XSDK_DRIVE_MODE_PANORAMA = 0x0007;
+const int XSDK_DRIVE_MODE_MOVIE = 0x0008;
+const int XSDK_DRIVE_MODE_HDR = 0x0009;
+const int XSDK_DRIVE_MODE_BKT_AE = 0x000A;
+const int XSDK_DRIVE_MODE_BKT_ISO = 0x000B;
+const int XSDK_DRIVE_MODE_BKT_FILMSIMULATION = 0x000C;
+const int XSDK_DRIVE_MODE_BKT_WHITEBALANCE = 0x000D;
+const int XSDK_DRIVE_MODE_BKT_DYNAMICRANGE = 0x000E;
+const int XSDK_DRIVE_MODE_BKT_FOCUS = 0x000F;
+const int XSDK_DRIVE_MODE_PIXELSHIFTMULTISHOT = 0x0010;
+const int XSDK_DRIVE_MODE_CH_CROP = 0x0011;
+const int XSDK_DRIVE_MODE_PIXELSHIFTMULTISHOT_FEWERFRAMES = 0x0012;
+const int XSDK_DRIVE_MODE_INVALID = 0xFFFF;
 
 // Release Mode
 const int XSDK_RELEASE_PIXELSHIFT = 0x0020;
@@ -190,7 +207,7 @@ class FujifilmSDKLibrary {
 
       // Fallback for when running in a development environment
       print("Fallback: Searching in project structure...");
-      final possiblePaths = [
+      final possiblePaths = <String>[
         'sdk/XAPI.dll', // SDK subdirectory relative to app root
         'fujifilm_shift_app/sdk/XAPI.dll', // SDK subdirectory relative to project root
       ];
@@ -229,201 +246,123 @@ class FujifilmSDKLibrary {
 }
 
 // Function signatures
-typedef _XSDK_InitNative = Int32 Function(Pointer<Void> hLib);
 typedef XSDK_Init = int Function(Pointer<Void> hLib);
 
-typedef _XSDK_ExitNative = Int32 Function();
 typedef XSDK_Exit = int Function();
 
-typedef _XSDK_DetectNative = Int32 Function(
-    Int32 lInterface,
-    Pointer<Utf8> pInterface,
-    Pointer<Utf8> pDeviceName,
-    Pointer<Int32> plCount);
 typedef XSDK_Detect = int Function(
     int lInterface,
     Pointer<Utf8> pInterface,
     Pointer<Utf8> pDeviceName,
-    Pointer<Int32> plCount);
+    Pointer<Int32> plCount,);
 
-typedef _XSDK_AppendNative = Int32 Function(
-    Int32 lInterface,
-    Pointer<Utf8> pInterface,
-    Pointer<Utf8> pDeviceName,
-    Pointer<Int32> plCount,
-    Pointer<XSDK_CameraList> pCameraList);
 typedef XSDK_Append = int Function(
     int lInterface,
     Pointer<Utf8> pInterface,
     Pointer<Utf8> pDeviceName,
     Pointer<Int32> plCount,
-    Pointer<XSDK_CameraList> pCameraList);
+    Pointer<XSDK_CameraList> pCameraList,);
 
-typedef _XSDK_OpenExNative = Int32 Function(
-    Pointer<Utf8> pDevice,
-    Pointer<Pointer<Void>> phCamera,
-    Pointer<Int32> plCameraMode,
-    Pointer<Void> pOption);
 typedef XSDK_OpenEx = int Function(
     Pointer<Utf8> pDevice,
     Pointer<Pointer<Void>> phCamera,
     Pointer<Int32> plCameraMode,
-    Pointer<Void> pOption);
+    Pointer<Void> pOption,);
 
-typedef _XSDK_CloseNative = Int32 Function(Pointer<Void> hCamera);
 typedef XSDK_Close = int Function(Pointer<Void> hCamera);
 
-typedef _XSDK_PowerOFFNative = Int32 Function(Pointer<Void> hCamera);
 typedef XSDK_PowerOFF = int Function(Pointer<Void> hCamera);
 
-typedef _XSDK_GetErrorNumberNative = Int32 Function(
-    Pointer<Void> hCamera,
-    Pointer<Int32> plAPICode,
-    Pointer<Int32> plERRCode);
 typedef XSDK_GetErrorNumber = int Function(
     Pointer<Void> hCamera,
     Pointer<Int32> plAPICode,
-    Pointer<Int32> plERRCode);
+    Pointer<Int32> plERRCode,);
 
-typedef _XSDK_GetVersionStringNative = Int32 Function(Pointer<Utf8> pVersionString);
 typedef XSDK_GetVersionString = int Function(Pointer<Utf8> pVersionString);
 
-typedef _XSDK_GetDeviceInfoNative = Int32 Function(
-    Pointer<Void> hCamera,
-    Pointer<XSDK_DeviceInformation> pDevInfo);
 typedef XSDK_GetDeviceInfo = int Function(
     Pointer<Void> hCamera,
-    Pointer<XSDK_DeviceInformation> pDevInfo);
+    Pointer<XSDK_DeviceInformation> pDevInfo,);
 
-typedef _XSDK_GetFirmwareVersionNative = Int32 Function(
-    Pointer<Void> hCamera,
-    Pointer<Utf8> pFirmwareVersion);
 typedef XSDK_GetFirmwareVersion = int Function(
     Pointer<Void> hCamera,
-    Pointer<Utf8> pFirmwareVersion);
+    Pointer<Utf8> pFirmwareVersion,);
 
-typedef _XSDK_GetLensInfoNative = Int32 Function(
-    Pointer<Void> hCamera,
-    Pointer<XSDK_LensInformation> pLensInfo);
 typedef XSDK_GetLensInfo = int Function(
     Pointer<Void> hCamera,
-    Pointer<XSDK_LensInformation> pLensInfo);
+    Pointer<XSDK_LensInformation> pLensInfo,);
 
-typedef _XSDK_CapPriorityModeNative = Int32 Function(
-    Pointer<Void> hCamera,
-    Pointer<Int32> plNumPriorityMode,
-    Pointer<Int32> plPriorityMode);
 typedef XSDK_CapPriorityMode = int Function(
     Pointer<Void> hCamera,
     Pointer<Int32> plNumPriorityMode,
-    Pointer<Int32> plPriorityMode);
+    Pointer<Int32> plPriorityMode,);
 
-typedef _XSDK_SetPriorityModeNative = Int32 Function(
-    Pointer<Void> hCamera, Int32 lPriorityMode);
 typedef XSDK_SetPriorityMode = int Function(
-    Pointer<Void> hCamera, int lPriorityMode);
+    Pointer<Void> hCamera, int lPriorityMode,);
 
-typedef _XSDK_GetPriorityModeNative = Int32 Function(
-    Pointer<Void> hCamera,
-    Pointer<Int32> plPriorityMode);
 typedef XSDK_GetPriorityMode = int Function(
     Pointer<Void> hCamera,
-    Pointer<Int32> plPriorityMode);
+    Pointer<Int32> plPriorityMode,);
 
-typedef _XSDK_ReadImageInfoNative = Int32 Function(Pointer<Void> hCamera,
-    Pointer<XSDK_ImageInformation> pImgInfo, Pointer<Int32> plPreviewSize);
 typedef XSDK_ReadImageInfo = int Function(Pointer<Void> hCamera,
-    Pointer<XSDK_ImageInformation> pImgInfo, Pointer<Int32> plPreviewSize);
+    Pointer<XSDK_ImageInformation> pImgInfo, Pointer<Int32> plPreviewSize,);
 
-typedef _XSDK_GetBufferCapacityNative = Int32 Function(
-    Pointer<Void> hCamera,
-    Pointer<Int32> plShootFrameNum,
-    Pointer<Int32> plTotalFrameNum);
 typedef XSDK_GetBufferCapacity = int Function(
     Pointer<Void> hCamera,
     Pointer<Int32> plShootFrameNum,
-    Pointer<Int32> plTotalFrameNum);
+    Pointer<Int32> plTotalFrameNum,);
 
-typedef _XSDK_ReadImageNative = Int32 Function(Pointer<Void> hCamera,
-    Pointer<Uint8> pData, Int32 ulDataSize, Pointer<Int32> pulReadSize);
 typedef XSDK_ReadImage = int Function(Pointer<Void> hCamera,
-    Pointer<Uint8> pData, int ulDataSize, Pointer<Int32> pulReadSize);
+    Pointer<Uint8> pData, int ulDataSize, Pointer<Int32> pulReadSize,);
 
 // Property Functions
-typedef _XSDK_SetPropNative = Int32 Function(
-    Pointer<Void> hCamera, Int32 lAPICode, Int32 lAPIParam);
 typedef XSDK_SetProp = int Function(
-    Pointer<Void> hCamera, int lAPICode, int lAPIParam);
+    Pointer<Void> hCamera, int lAPICode, int lAPIParam,);
 
-typedef _XSDK_GetPropNative = Int32 Function(
-    Pointer<Void> hCamera, Int32 lAPICode, Pointer<Int32> plAPIParam);
 typedef XSDK_GetProp = int Function(
-    Pointer<Void> hCamera, int lAPICode, Pointer<Int32> plAPIParam);
+    Pointer<Void> hCamera, int lAPICode, Pointer<Int32> plAPIParam,);
 
-typedef _XSDK_CapPropNative = Int32 Function(Pointer<Void> hCamera,
-    Int32 lAPICode, Pointer<Int32> plNum, Pointer<Int32> plCapability);
 typedef XSDK_CapProp = int Function(Pointer<Void> hCamera, int lAPICode,
-    Pointer<Int32> plNum, Pointer<Int32> plCapability);
+    Pointer<Int32> plNum, Pointer<Int32> plCapability,);
 
 // Drive Mode Binding
-typedef _XSDK_CapDriveModeNative = Int32 Function(Pointer<Void> hCamera,
-    Pointer<Int32> plNumDriveMode, Pointer<Int32> plDriveMode);
 typedef XSDK_CapDriveMode = int Function(Pointer<Void> hCamera,
-    Pointer<Int32> plNumDriveMode, Pointer<Int32> plDriveMode);
-typedef _XSDK_SetDriveModeNative = Int32 Function(Pointer<Void> hCamera, Int32 lMode);
+    Pointer<Int32> plNumDriveMode, Pointer<Int32> plDriveMode,);
 typedef XSDK_SetDriveMode = int Function(Pointer<Void> hCamera, int lMode);
 
 // Mode Bindings
-typedef _XSDK_CapModeNative = Int32 Function(
-    Pointer<Void> hCamera, Pointer<Int32> plNumMode, Pointer<Int32> plMode);
 typedef XSDK_CapMode = int Function(
-    Pointer<Void> hCamera, Pointer<Int32> plNumMode, Pointer<Int32> plMode);
+    Pointer<Void> hCamera, Pointer<Int32> plNumMode, Pointer<Int32> plMode,);
 
-typedef _XSDK_SetModeNative = Int32 Function(Pointer<Void> hCamera, Int32 lMode);
 typedef XSDK_SetMode = int Function(Pointer<Void> hCamera, int lMode);
 
-typedef _XSDK_GetModeNative = Int32 Function(
-    Pointer<Void> hCamera, Pointer<Int32> plMode);
 typedef XSDK_GetMode = int Function(Pointer<Void> hCamera, Pointer<Int32> plMode);
 
 // Release Binding
-typedef _XSDK_ReleaseNative = Int32 Function(
-    Pointer<Void> hCamera, Int32 lMode, Pointer<Int32> pShotOpt, Pointer<Int32> pStatus);
 typedef XSDK_Release = int Function(
-    Pointer<Void> hCamera, int lMode, Pointer<Int32> pShotOpt, Pointer<Int32> pStatus);
+    Pointer<Void> hCamera, int lMode, Pointer<Int32> pShotOpt, Pointer<Int32> pStatus,);
 
 // Pixel Shift Bindings
-typedef _XSDK_StartPixelShiftShootingNative = Int32 Function(Pointer<Void> hCamera);
 typedef XSDK_StartPixelShiftShooting = int Function(Pointer<Void> hCamera);
 
-typedef _XSDK_GetPixelShiftInfoNative = Int32 Function(
-    Pointer<Void> hCamera, Pointer<XSDK_PixelShiftInformation> pInfo);
 typedef XSDK_GetPixelShiftInfo = int Function(
-    Pointer<Void> hCamera, Pointer<XSDK_PixelShiftInformation> pInfo);
+    Pointer<Void> hCamera, Pointer<XSDK_PixelShiftInformation> pInfo,);
 
 // Live View Bindings
-typedef _XSDK_StartLiveViewNative = Int32 Function(Pointer<Void> hCamera);
 typedef XSDK_StartLiveView = int Function(Pointer<Void> hCamera);
 
-typedef _XSDK_StopLiveViewNative = Int32 Function(Pointer<Void> hCamera);
 typedef XSDK_StopLiveView = int Function(Pointer<Void> hCamera);
 
 
 // File Download Bindings
-typedef _XSDK_GetNumContentsNative = Int32 Function(
-    Pointer<Void> hCamera, Pointer<Int32> plNumContents);
 typedef XSDK_GetNumContents = int Function(
-    Pointer<Void> hCamera, Pointer<Int32> plNumContents);
+    Pointer<Void> hCamera, Pointer<Int32> plNumContents,);
 
-typedef _XSDK_GetContentInfoNative = Int32 Function(Pointer<Void> hCamera,
-    Int32 lIndex, Pointer<XSDK_ContentInformation> pContentInfo);
 typedef XSDK_GetContentInfo = int Function(Pointer<Void> hCamera, int lIndex,
-    Pointer<XSDK_ContentInformation> pContentInfo);
+    Pointer<XSDK_ContentInformation> pContentInfo,);
 
-typedef _XSDK_GetContentDataNative = Int32 Function(Pointer<Void> hCamera,
-    Int32 lIndex, Pointer<Uint8> pBuffer, Int32 lBufferSize);
 typedef XSDK_GetContentData = int Function(Pointer<Void> hCamera, int lIndex,
-    Pointer<Uint8> pBuffer, int lBufferSize);
+    Pointer<Uint8> pBuffer, int lBufferSize,);
 
 
 // Dart wrapper functions with null safety
@@ -434,292 +373,226 @@ class FujifilmSDK {
     final lib = FujifilmSDKLibrary.library;
     if (lib == null) {
       throw StateError(
-          'Fujifilm SDK library not loaded. ${FujifilmSDKLibrary.lastError}');
+          'Fujifilm SDK library not loaded. ${FujifilmSDKLibrary.lastError}',);
     }
     return lib;
   }
 
-  static Pointer<Void> getLibraryHandle() {
-    return _lib.handle;
-  }
+  static Pointer<Void> getLibraryHandle() => _lib.handle;
 
   // Initialize SDK with proper library handle
-  static int xsdkInitWithHandle() {
-    return _xsdkInit(_lib.handle);
-  }
+  static int xsdkInitWithHandle() => _xsdkInit(_lib.handle);
 
   // Function pointers - initialized lazily to handle null library
   static final XSDK_Init _xsdkInit =
-      _lib.lookup<NativeFunction<_XSDK_InitNative>>('XSDK_Init').asFunction<XSDK_Init>();
+      _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>)>>('XSDK_Init').asFunction<XSDK_Init>();
   static final XSDK_Exit _xsdkExit =
-      _lib.lookup<NativeFunction<_XSDK_ExitNative>>('XSDK_Exit').asFunction<XSDK_Exit>();
+      _lib.lookup<NativeFunction<Int32 Function()>>('XSDK_Exit').asFunction<XSDK_Exit>();
   static final XSDK_Detect _xsdkDetect =
-      _lib.lookup<NativeFunction<_XSDK_DetectNative>>('XSDK_Detect').asFunction<XSDK_Detect>();
+      _lib.lookup<NativeFunction<Int32 Function(Int32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Int32>)>>('XSDK_Detect').asFunction<XSDK_Detect>();
   static final XSDK_Append _xsdkAppend =
-      _lib.lookup<NativeFunction<_XSDK_AppendNative>>('XSDK_Append').asFunction<XSDK_Append>();
+      _lib.lookup<NativeFunction<Int32 Function(Int32, Pointer<Utf8>, Pointer<Utf8>, Pointer<Int32>, Pointer<XSDK_CameraList>)>>('XSDK_Append').asFunction<XSDK_Append>();
   static final XSDK_OpenEx _xsdkOpenEx =
-      _lib.lookup<NativeFunction<_XSDK_OpenExNative>>('XSDK_OpenEx').asFunction<XSDK_OpenEx>();
+      _lib.lookup<NativeFunction<Int32 Function(Pointer<Utf8>, Pointer<Pointer<Void>>, Pointer<Int32>, Pointer<Void>)>>('XSDK_OpenEx').asFunction<XSDK_OpenEx>();
   static final XSDK_Close _xsdkClose =
-      _lib.lookup<NativeFunction<_XSDK_CloseNative>>('XSDK_Close').asFunction<XSDK_Close>();
+      _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>)>>('XSDK_Close').asFunction<XSDK_Close>();
   static final XSDK_PowerOFF _xsdkPowerOff =
-      _lib.lookup<NativeFunction<_XSDK_PowerOFFNative>>('XSDK_PowerOFF').asFunction<XSDK_PowerOFF>();
+      _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>)>>('XSDK_PowerOFF').asFunction<XSDK_PowerOFF>();
   static final XSDK_GetErrorNumber _xsdkGetErrorNumber = _lib
-      .lookup<NativeFunction<_XSDK_GetErrorNumberNative>>('XSDK_GetErrorNumber')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>, Pointer<Int32>)>>('XSDK_GetErrorNumber')
       .asFunction<XSDK_GetErrorNumber>();
   static final XSDK_GetVersionString _xsdkGetVersionString = _lib
-      .lookup<NativeFunction<_XSDK_GetVersionStringNative>>(
-          'XSDK_GetVersionString')
+      .lookup<NativeFunction<Int32 Function(Pointer<Utf8>)>>(
+          'XSDK_GetVersionString',)
       .asFunction<XSDK_GetVersionString>();
   static final XSDK_GetDeviceInfo _xsdkGetDeviceInfo = _lib
-      .lookup<NativeFunction<_XSDK_GetDeviceInfoNative>>('XSDK_GetDeviceInfo')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<XSDK_DeviceInformation>)>>('XSDK_GetDeviceInfo')
       .asFunction<XSDK_GetDeviceInfo>();
   static final XSDK_GetFirmwareVersion _xsdkGetFirmwareVersion = _lib
-      .lookup<NativeFunction<_XSDK_GetFirmwareVersionNative>>(
-          'XSDK_GetFirmwareVersion')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Utf8>)>>(
+          'XSDK_GetFirmwareVersion',)
       .asFunction<XSDK_GetFirmwareVersion>();
   static final XSDK_GetLensInfo _xsdkGetLensInfo = _lib
-      .lookup<NativeFunction<_XSDK_GetLensInfoNative>>('XSDK_GetLensInfo')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<XSDK_LensInformation>)>>('XSDK_GetLensInfo')
       .asFunction<XSDK_GetLensInfo>();
   static final XSDK_CapPriorityMode _xsdkCapPriorityMode = _lib
-      .lookup<NativeFunction<_XSDK_CapPriorityModeNative>>(
-          'XSDK_CapPriorityMode')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>, Pointer<Int32>)>>(
+          'XSDK_CapPriorityMode',)
       .asFunction<XSDK_CapPriorityMode>();
   static final XSDK_SetPriorityMode _xsdkSetPriorityMode = _lib
-      .lookup<NativeFunction<_XSDK_SetPriorityModeNative>>(
-          'XSDK_SetPriorityMode')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32)>>(
+          'XSDK_SetPriorityMode',)
       .asFunction<XSDK_SetPriorityMode>();
   static final XSDK_GetPriorityMode _xsdkGetPriorityMode = _lib
-      .lookup<NativeFunction<_XSDK_GetPriorityModeNative>>(
-          'XSDK_GetPriorityMode')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>)>>(
+          'XSDK_GetPriorityMode',)
       .asFunction<XSDK_GetPriorityMode>();
   static final XSDK_ReadImageInfo _xsdkReadImageInfo = _lib
-      .lookup<NativeFunction<_XSDK_ReadImageInfoNative>>('XSDK_ReadImageInfo')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<XSDK_ImageInformation>, Pointer<Int32>)>>('XSDK_ReadImageInfo')
       .asFunction<XSDK_ReadImageInfo>();
   static final XSDK_GetBufferCapacity _xsdkGetBufferCapacity = _lib
-      .lookup<NativeFunction<_XSDK_GetBufferCapacityNative>>(
-          'XSDK_GetBufferCapacity')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>, Pointer<Int32>)>>(
+          'XSDK_GetBufferCapacity',)
       .asFunction<XSDK_GetBufferCapacity>();
   static final XSDK_ReadImage _xsdkReadImage = _lib
-      .lookup<NativeFunction<_XSDK_ReadImageNative>>('XSDK_ReadImage')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Uint8>, Int32, Pointer<Int32>)>>('XSDK_ReadImage')
       .asFunction<XSDK_ReadImage>();
 
   // Property functions
   static final XSDK_SetProp _xsdkSetProp = _lib
-      .lookup<NativeFunction<_XSDK_SetPropNative>>('XSDK_SetProp')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32, Int32)>>('XSDK_SetProp')
       .asFunction<XSDK_SetProp>();
   static final XSDK_GetProp _xsdkGetProp = _lib
-      .lookup<NativeFunction<_XSDK_GetPropNative>>('XSDK_GetProp')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32, Pointer<Int32>)>>('XSDK_GetProp')
       .asFunction<XSDK_GetProp>();
   static final XSDK_CapProp _xsdkCapProp = _lib
-      .lookup<NativeFunction<_XSDK_CapPropNative>>('XSDK_CapProp')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32, Pointer<Int32>, Pointer<Int32>)>>('XSDK_CapProp')
       .asFunction<XSDK_CapProp>();
 
   // Drive Mode function
   static final XSDK_CapDriveMode _xsdkCapDriveMode = _lib
-      .lookup<NativeFunction<_XSDK_CapDriveModeNative>>('XSDK_CapDriveMode')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>, Pointer<Int32>)>>('XSDK_CapDriveMode')
       .asFunction<XSDK_CapDriveMode>();
   static final XSDK_SetDriveMode _xsdkSetDriveMode =
-      _lib.lookup<NativeFunction<_XSDK_SetDriveModeNative>>('XSDK_SetDriveMode').asFunction<XSDK_SetDriveMode>();
+      _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32)>>('XSDK_SetDriveMode').asFunction<XSDK_SetDriveMode>();
 
   // Mode functions
   static final XSDK_CapMode _xsdkCapMode =
-      _lib.lookup<NativeFunction<_XSDK_CapModeNative>>('XSDK_CapMode').asFunction<XSDK_CapMode>();
+      _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>, Pointer<Int32>)>>('XSDK_CapMode').asFunction<XSDK_CapMode>();
   static final XSDK_SetMode _xsdkSetMode =
-      _lib.lookup<NativeFunction<_XSDK_SetModeNative>>('XSDK_SetMode').asFunction<XSDK_SetMode>();
+      _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32)>>('XSDK_SetMode').asFunction<XSDK_SetMode>();
   static final XSDK_GetMode _xsdkGetMode =
-      _lib.lookup<NativeFunction<_XSDK_GetModeNative>>('XSDK_GetMode').asFunction<XSDK_GetMode>();
+      _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>)>>('XSDK_GetMode').asFunction<XSDK_GetMode>();
 
   // Release function
   static final XSDK_Release _xsdkRelease = _lib
-      .lookup<NativeFunction<_XSDK_ReleaseNative>>('XSDK_Release')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32, Pointer<Int32>, Pointer<Int32>)>>('XSDK_Release')
       .asFunction<XSDK_Release>();
 
   // Pixel Shift functions
   static final XSDK_StartPixelShiftShooting _xsdkStartPixelShiftShooting = _lib
-      .lookup<NativeFunction<_XSDK_StartPixelShiftShootingNative>>(
-          'XSDK_StartPixelShiftShooting')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>)>>(
+          'XSDK_StartPixelShiftShooting',)
       .asFunction<XSDK_StartPixelShiftShooting>();
 
   static final XSDK_GetPixelShiftInfo _xsdkGetPixelShiftInfo = _lib
-      .lookup<NativeFunction<_XSDK_GetPixelShiftInfoNative>>(
-          'XSDK_GetPixelShiftInfo')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<XSDK_PixelShiftInformation>)>>(
+          'XSDK_GetPixelShiftInfo',)
       .asFunction<XSDK_GetPixelShiftInfo>();
 
   static final XSDK_StartLiveView _xsdkStartLiveView = _lib
-      .lookup<NativeFunction<_XSDK_StartLiveViewNative>>('XSDK_StartLiveView')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>)>>('XSDK_StartLiveView')
       .asFunction<XSDK_StartLiveView>();
 
   static final XSDK_StopLiveView _xsdkStopLiveView = _lib
-      .lookup<NativeFunction<_XSDK_StopLiveViewNative>>('XSDK_StopLiveView')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>)>>('XSDK_StopLiveView')
       .asFunction<XSDK_StopLiveView>();
 
   // File Download functions
   static final XSDK_GetNumContents _xsdkGetNumContents = _lib
-      .lookup<NativeFunction<_XSDK_GetNumContentsNative>>('XSDK_GetNumContents')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>)>>('XSDK_GetNumContents')
       .asFunction<XSDK_GetNumContents>();
 
   static final XSDK_GetContentInfo _xsdkGetContentInfo = _lib
-      .lookup<NativeFunction<_XSDK_GetContentInfoNative>>('XSDK_GetContentInfo')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32, Pointer<XSDK_ContentInformation>)>>('XSDK_GetContentInfo')
       .asFunction<XSDK_GetContentInfo>();
 
   static final XSDK_GetContentData _xsdkGetContentData = _lib
-      .lookup<NativeFunction<_XSDK_GetContentDataNative>>('XSDK_GetContentData')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32, Pointer<Uint8>, Int32)>>('XSDK_GetContentData')
       .asFunction<XSDK_GetContentData>();
 
 
-  static int xsdkInit(Pointer<Void> hLib) {
-    return _xsdkInit(hLib);
-  }
+  static int xsdkInit(Pointer<Void> hLib) => _xsdkInit(hLib);
 
-  static int xsdkExit() {
-    return _xsdkExit();
-  }
+  static int xsdkExit() => _xsdkExit();
 
   static int xsdkDetect(int lInterface, Pointer<Utf8> pInterface,
-      Pointer<Utf8> pDeviceName, Pointer<Int32> plCount) {
-    return _xsdkDetect(lInterface, pInterface, pDeviceName, plCount);
-  }
+      Pointer<Utf8> pDeviceName, Pointer<Int32> plCount,) => _xsdkDetect(lInterface, pInterface, pDeviceName, plCount);
 
   static int xsdkAppend(
       int lInterface,
       Pointer<Utf8> pInterface,
       Pointer<Utf8> pDeviceName,
       Pointer<Int32> plCount,
-      Pointer<XSDK_CameraList> pCameraList) {
-    return _xsdkAppend(lInterface, pInterface, pDeviceName, plCount, pCameraList);
-  }
+      Pointer<XSDK_CameraList> pCameraList,) => _xsdkAppend(lInterface, pInterface, pDeviceName, plCount, pCameraList);
 
   static int xsdkOpenEx(Pointer<Utf8> pDevice, Pointer<Pointer<Void>> phCamera,
-      Pointer<Int32> plCameraMode, Pointer<Void> pOption) {
-    return _xsdkOpenEx(pDevice, phCamera, plCameraMode, pOption);
-  }
+      Pointer<Int32> plCameraMode, Pointer<Void> pOption,) => _xsdkOpenEx(pDevice, phCamera, plCameraMode, pOption);
 
-  static int xsdkClose(Pointer<Void> hCamera) {
-    return _xsdkClose(hCamera);
-  }
+  static int xsdkClose(Pointer<Void> hCamera) => _xsdkClose(hCamera);
 
-  static int xsdkPowerOff(Pointer<Void> hCamera) {
-    return _xsdkPowerOff(hCamera);
-  }
+  static int xsdkPowerOff(Pointer<Void> hCamera) => _xsdkPowerOff(hCamera);
 
   static int xsdkGetErrorNumber(Pointer<Void> hCamera, Pointer<Int32> plAPICode,
-      Pointer<Int32> plERRCode) {
-    return _xsdkGetErrorNumber(hCamera, plAPICode, plERRCode);
-  }
+      Pointer<Int32> plERRCode,) => _xsdkGetErrorNumber(hCamera, plAPICode, plERRCode);
 
-  static int xsdkGetVersionString(Pointer<Utf8> pVersionString) {
-    return _xsdkGetVersionString(pVersionString);
-  }
+  static int xsdkGetVersionString(Pointer<Utf8> pVersionString) => _xsdkGetVersionString(pVersionString);
 
   static int xsdkGetDeviceInfo(
-      Pointer<Void> hCamera, Pointer<XSDK_DeviceInformation> pDevInfo) {
-    return _xsdkGetDeviceInfo(hCamera, pDevInfo);
-  }
+      Pointer<Void> hCamera, Pointer<XSDK_DeviceInformation> pDevInfo,) => _xsdkGetDeviceInfo(hCamera, pDevInfo);
 
   static int xsdkGetFirmwareVersion(
-      Pointer<Void> hCamera, Pointer<Utf8> pFirmwareVersion) {
-    return _xsdkGetFirmwareVersion(hCamera, pFirmwareVersion);
-  }
+      Pointer<Void> hCamera, Pointer<Utf8> pFirmwareVersion,) => _xsdkGetFirmwareVersion(hCamera, pFirmwareVersion);
 
   static int xsdkGetLensInfo(
-      Pointer<Void> hCamera, Pointer<XSDK_LensInformation> pLensInfo) {
-    return _xsdkGetLensInfo(hCamera, pLensInfo);
-  }
+      Pointer<Void> hCamera, Pointer<XSDK_LensInformation> pLensInfo,) => _xsdkGetLensInfo(hCamera, pLensInfo);
 
   static int xsdkCapPriorityMode(Pointer<Void> hCamera,
-      Pointer<Int32> plNumPriorityMode, Pointer<Int32> plPriorityMode) {
-    return _xsdkCapPriorityMode(hCamera, plNumPriorityMode, plPriorityMode);
-  }
+      Pointer<Int32> plNumPriorityMode, Pointer<Int32> plPriorityMode,) => _xsdkCapPriorityMode(hCamera, plNumPriorityMode, plPriorityMode);
 
-  static int xsdkSetPriorityMode(Pointer<Void> hCamera, int lPriorityMode) {
-    return _xsdkSetPriorityMode(hCamera, lPriorityMode);
-  }
+  static int xsdkSetPriorityMode(Pointer<Void> hCamera, int lPriorityMode) => _xsdkSetPriorityMode(hCamera, lPriorityMode);
 
   static int xsdkGetPriorityMode(
-      Pointer<Void> hCamera, Pointer<Int32> plPriorityMode) {
-    return _xsdkGetPriorityMode(hCamera, plPriorityMode);
-  }
+      Pointer<Void> hCamera, Pointer<Int32> plPriorityMode,) => _xsdkGetPriorityMode(hCamera, plPriorityMode);
 
   static int xsdkReadImageInfo(
       Pointer<Void> hCamera,
       Pointer<XSDK_ImageInformation> pImgInfo,
-      Pointer<Int32> plPreviewSize) {
-    return _xsdkReadImageInfo(hCamera, pImgInfo, plPreviewSize);
-  }
+      Pointer<Int32> plPreviewSize,) => _xsdkReadImageInfo(hCamera, pImgInfo, plPreviewSize);
 
   static int xsdkGetBufferCapacity(Pointer<Void> hCamera,
-      Pointer<Int32> plShootFrameNum, Pointer<Int32> plTotalFrameNum) {
-    return _xsdkGetBufferCapacity(hCamera, plShootFrameNum, plTotalFrameNum);
-  }
+      Pointer<Int32> plShootFrameNum, Pointer<Int32> plTotalFrameNum,) => _xsdkGetBufferCapacity(hCamera, plShootFrameNum, plTotalFrameNum);
 
   static int xsdkReadImage(Pointer<Void> hCamera, Pointer<Uint8> pData,
-      int ulDataSize, Pointer<Int32> pulReadSize) {
-    return _xsdkReadImage(hCamera, pData, ulDataSize, pulReadSize);
-  }
+      int ulDataSize, Pointer<Int32> pulReadSize,) => _xsdkReadImage(hCamera, pData, ulDataSize, pulReadSize);
 
-  static int xsdkSetProp(Pointer<Void> hCamera, int lAPICode, int lAPIParam) {
-    return _xsdkSetProp(hCamera, lAPICode, lAPIParam);
-  }
+  static int xsdkSetProp(Pointer<Void> hCamera, int lAPICode, int lAPIParam) => _xsdkSetProp(hCamera, lAPICode, lAPIParam);
 
   static int xsdkGetProp(
-      Pointer<Void> hCamera, int lAPICode, Pointer<Int32> plAPIParam) {
-    return _xsdkGetProp(hCamera, lAPICode, plAPIParam);
-  }
+      Pointer<Void> hCamera, int lAPICode, Pointer<Int32> plAPIParam,) => _xsdkGetProp(hCamera, lAPICode, plAPIParam);
 
   static int xsdkCapProp(Pointer<Void> hCamera, int lAPICode,
-      Pointer<Int32> plNum, Pointer<Int32> plCapability) {
-    return _xsdkCapProp(hCamera, lAPICode, plNum, plCapability);
-  }
+      Pointer<Int32> plNum, Pointer<Int32> plCapability,) => _xsdkCapProp(hCamera, lAPICode, plNum, plCapability);
 
   static int xsdkCapDriveMode(Pointer<Void> hCamera,
-      Pointer<Int32> plNumDriveMode, Pointer<Int32> plDriveMode) {
-    return _xsdkCapDriveMode(hCamera, plNumDriveMode, plDriveMode);
-  }
+      Pointer<Int32> plNumDriveMode, Pointer<Int32> plDriveMode,) => _xsdkCapDriveMode(hCamera, plNumDriveMode, plDriveMode);
 
-  static int xsdkSetDriveMode(Pointer<Void> hCamera, int lMode) {
-    return _xsdkSetDriveMode(hCamera, lMode);
-  }
+  static int xsdkSetDriveMode(Pointer<Void> hCamera, int lMode) => _xsdkSetDriveMode(hCamera, lMode);
 
-  static int xsdkGetMode(Pointer<Void> hCamera, Pointer<Int32> plMode) {
-    return _xsdkGetMode(hCamera, plMode);
-  }
+  static int xsdkGetMode(Pointer<Void> hCamera, Pointer<Int32> plMode) => _xsdkGetMode(hCamera, plMode);
+
+  static int xsdkSetMode(Pointer<Void> hCamera, int lMode) => _xsdkSetMode(hCamera, lMode);
 
   static int xsdkRelease(
-      Pointer<Void> hCamera, int lMode, Pointer<Int32> pShotOpt, Pointer<Int32> pStatus) {
-    return _xsdkRelease(hCamera, lMode, pShotOpt, pStatus);
-  }
+      Pointer<Void> hCamera, int lMode, Pointer<Int32> pShotOpt, Pointer<Int32> pStatus,) => _xsdkRelease(hCamera, lMode, pShotOpt, pStatus);
 
-  static int xsdkStartPixelShiftShooting(Pointer<Void> hCamera) {
-    return _xsdkStartPixelShiftShooting(hCamera);
-  }
+  static int xsdkStartPixelShiftShooting(Pointer<Void> hCamera) => _xsdkStartPixelShiftShooting(hCamera);
 
   static int xsdkGetPixelShiftInfo(
-      Pointer<Void> hCamera, Pointer<XSDK_PixelShiftInformation> pInfo) {
-    return _xsdkGetPixelShiftInfo(hCamera, pInfo);
-  }
+      Pointer<Void> hCamera, Pointer<XSDK_PixelShiftInformation> pInfo,) => _xsdkGetPixelShiftInfo(hCamera, pInfo);
 
-  static int xsdkStartLiveView(Pointer<Void> hCamera) {
-    return _xsdkStartLiveView(hCamera);
-  }
+  static int xsdkStartLiveView(Pointer<Void> hCamera) => _xsdkStartLiveView(hCamera);
 
-  static int xsdkStopLiveView(Pointer<Void> hCamera) {
-    return _xsdkStopLiveView(hCamera);
-  }
+  static int xsdkStopLiveView(Pointer<Void> hCamera) => _xsdkStopLiveView(hCamera);
 
   static int xsdkGetNumContents(
-      Pointer<Void> hCamera, Pointer<Int32> plNumContents) {
-    return _xsdkGetNumContents(hCamera, plNumContents);
-  }
+      Pointer<Void> hCamera, Pointer<Int32> plNumContents,) => _xsdkGetNumContents(hCamera, plNumContents);
 
   static int xsdkGetContentInfo(Pointer<Void> hCamera, int lIndex,
-      Pointer<XSDK_ContentInformation> pContentInfo) {
-    return _xsdkGetContentInfo(hCamera, lIndex, pContentInfo);
-  }
+      Pointer<XSDK_ContentInformation> pContentInfo,) => _xsdkGetContentInfo(hCamera, lIndex, pContentInfo);
 
   static int xsdkGetContentData(Pointer<Void> hCamera, int lIndex,
-      Pointer<Uint8> pBuffer, int lBufferSize) {
-    return _xsdkGetContentData(hCamera, lIndex, pBuffer, lBufferSize);
-  }
+      Pointer<Uint8> pBuffer, int lBufferSize,) => _xsdkGetContentData(hCamera, lIndex, pBuffer, lBufferSize);
 }
 
 // Helper functions for string conversion
@@ -747,9 +620,7 @@ String convertUint8PointerToString(Pointer<Uint8> pointer) {
   return String.fromCharCodes(list);
 }
 
-Pointer<Utf8> stringToUtf8Pointer(String str) {
-  return str.toNativeUtf8();
-}
+Pointer<Utf8> stringToUtf8Pointer(String str) => str.toNativeUtf8();
 
 void freeStringPointer(Pointer<Utf8> pointer) {
   malloc.free(pointer);
