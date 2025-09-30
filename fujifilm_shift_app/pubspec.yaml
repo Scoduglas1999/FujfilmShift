@@ -38,7 +38,7 @@ dependencies:
   path: ^1.8.3
 
   # Platform-specific functionality
-  file_picker: ^5.3.3
+  file_picker: ^10.3.3
   open_file: ^3.3.2
   window_manager: ^0.3.8
 

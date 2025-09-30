@@ -6,22 +6,22 @@ import '../../features/camera/data/models/camera_models.dart';
 import '../../features/camera/data/services/camera_service.dart';
 
 /// Provider for camera state management
-final cameraServiceProvider = Provider<CameraService>((ref) {
+final Provider<CameraService> cameraServiceProvider = Provider<CameraService>((ProviderRef<CameraService> ref) {
   // Use the real Fujifilm SDK service (singleton instance)
   return FujifilmCameraService.instance;
 });
 
 /// State notifier for camera connection and information
 class CameraNotifier extends StateNotifier<CameraState> {
+
+  CameraNotifier(this._cameraService) : super(const CameraState()) {
+    initialize();
+  }
   final CameraService _cameraService;
   StreamSubscription? _connectionSubscription;
   StreamSubscription? _cameraInfoSubscription;
   StreamSubscription? _pixelShiftSubscription;
   bool _isInitialized = false;
-
-  CameraNotifier(this._cameraService) : super(const CameraState()) {
-    initialize();
-  }
 
   Future<void> initialize() async {
     // Prevent multiple initializations
@@ -31,17 +31,17 @@ class CameraNotifier extends StateNotifier<CameraState> {
 
     try {
       // Listen to connection status changes
-      _connectionSubscription = _cameraService.connectionStatus.listen((status) {
+      _connectionSubscription = _cameraService.connectionStatus.listen((ConnectionStatus status) {
         state = state.copyWith(connectionStatus: status);
       });
 
       // Listen to camera info changes
-      _cameraInfoSubscription = _cameraService.cameraInfoStream.listen((cameraInfo) {
+      _cameraInfoSubscription = _cameraService.cameraInfoStream.listen((CameraInfo? cameraInfo) {
         state = state.copyWith(cameraInfo: cameraInfo);
       });
 
       // Listen to pixel shift state changes
-      _pixelShiftSubscription = _cameraService.pixelShiftState.listen((pixelShiftState) {
+      _pixelShiftSubscription = _cameraService.pixelShiftState.listen((PixelShiftState pixelShiftState) {
         state = state.copyWith(pixelShiftState: pixelShiftState);
       });
 
@@ -49,7 +49,7 @@ class CameraNotifier extends StateNotifier<CameraState> {
       final success = await _cameraService.initializeSDK();
       if (success) {
         // Detect available cameras
-        await _detectCameras();
+        await detectCameras();
       } else {
         state = state.copyWith(
           connectionStatus: ConnectionStatus.error,
@@ -67,7 +67,7 @@ class CameraNotifier extends StateNotifier<CameraState> {
     }
   }
 
-  Future<void> _detectCameras() async {
+  Future<void> detectCameras() async {
     try {
       state = state.copyWith(isLoading: true);
       final cameras = await _cameraService.detectCameras();
@@ -87,7 +87,6 @@ class CameraNotifier extends StateNotifier<CameraState> {
     try {
       state = state.copyWith(
         isLoading: true,
-        error: null,
       );
 
       final success = await _cameraService.connectToCamera(deviceId);
@@ -121,7 +120,6 @@ class CameraNotifier extends StateNotifier<CameraState> {
       state = state.copyWith(isLoading: true);
       await _cameraService.disconnectCamera();
       state = state.copyWith(
-        cameraInfo: null,
         isLoading: false,
       );
     } catch (e) {
@@ -199,21 +197,21 @@ class CameraNotifier extends StateNotifier<CameraState> {
 
 /// State class for camera information
 class CameraState {
+
+  const CameraState({
+    this.connectionStatus = ConnectionStatus.disconnected,
+    this.availableCameras = const <CameraInfo>[],
+    this.cameraInfo,
+    this.pixelShiftState = const PixelShiftState(),
+    this.isLoading = false,
+    this.error,
+  });
   final ConnectionStatus connectionStatus;
   final List<CameraInfo> availableCameras;
   final CameraInfo? cameraInfo;
   final PixelShiftState pixelShiftState;
   final bool isLoading;
   final ConnectionError? error;
-
-  const CameraState({
-    this.connectionStatus = ConnectionStatus.disconnected,
-    this.availableCameras = const [],
-    this.cameraInfo,
-    this.pixelShiftState = const PixelShiftState(),
-    this.isLoading = false,
-    this.error,
-  });
 
   bool get isConnected => connectionStatus == ConnectionStatus.connected;
   bool get hasError => error != null;
@@ -226,8 +224,7 @@ class CameraState {
     PixelShiftState? pixelShiftState,
     bool? isLoading,
     ConnectionError? error,
-  }) {
-    return CameraState(
+  }) => CameraState(
       connectionStatus: connectionStatus ?? this.connectionStatus,
       availableCameras: availableCameras ?? this.availableCameras,
       cameraInfo: cameraInfo ?? this.cameraInfo,
@@ -235,53 +232,52 @@ class CameraState {
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
     );
-  }
 }
 
 /// Provider for camera state
-final cameraProvider = StateNotifierProvider<CameraNotifier, CameraState>((ref) {
+final StateNotifierProvider<CameraNotifier, CameraState> cameraProvider = StateNotifierProvider<CameraNotifier, CameraState>((StateNotifierProviderRef<CameraNotifier, CameraState> ref) {
   final cameraService = ref.watch(cameraServiceProvider);
   return CameraNotifier(cameraService);
 });
 
 /// Provider for checking if pixel shift is supported
-final pixelShiftSupportProvider = FutureProvider<bool>((ref) async {
+final FutureProvider<bool> pixelShiftSupportProvider = FutureProvider<bool>((FutureProviderRef<bool> ref) async {
   final cameraNotifier = ref.watch(cameraProvider.notifier);
-  return await cameraNotifier.isPixelShiftSupported();
+  return cameraNotifier.isPixelShiftSupported();
 });
 
 /// Provider for pixel shift state
-final pixelShiftStateProvider = Provider<PixelShiftState>((ref) {
+final Provider<PixelShiftState> pixelShiftStateProvider = Provider<PixelShiftState>((ProviderRef<PixelShiftState> ref) {
   final state = ref.watch(cameraProvider);
   return state.pixelShiftState;
 });
 
 /// Provider for available cameras
-final availableCamerasProvider = Provider<List<CameraInfo>>((ref) {
+final Provider<List<CameraInfo>> availableCamerasProvider = Provider<List<CameraInfo>>((ProviderRef<List<CameraInfo>> ref) {
   final state = ref.watch(cameraProvider);
   return state.availableCameras;
 });
 
 /// Provider for connected camera info
-final connectedCameraProvider = Provider<CameraInfo?>((ref) {
+final Provider<CameraInfo?> connectedCameraProvider = Provider<CameraInfo?>((ProviderRef<CameraInfo?> ref) {
   final state = ref.watch(cameraProvider);
   return state.cameraInfo;
 });
 
 /// Provider for connection status
-final connectionStatusProvider = Provider<ConnectionStatus>((ref) {
+final Provider<ConnectionStatus> connectionStatusProvider = Provider<ConnectionStatus>((ProviderRef<ConnectionStatus> ref) {
   final state = ref.watch(cameraProvider);
   return state.connectionStatus;
 });
 
 /// Provider for loading state
-final cameraLoadingProvider = Provider<bool>((ref) {
+final Provider<bool> cameraLoadingProvider = Provider<bool>((ProviderRef<bool> ref) {
   final state = ref.watch(cameraProvider);
   return state.isLoading;
 });
 
 /// Provider for error state
-final cameraErrorProvider = Provider<ConnectionError?>((ref) {
+final Provider<ConnectionError?> cameraErrorProvider = Provider<ConnectionError?>((ProviderRef<ConnectionError?> ref) {
   final state = ref.watch(cameraProvider);
   return state.error;
 });

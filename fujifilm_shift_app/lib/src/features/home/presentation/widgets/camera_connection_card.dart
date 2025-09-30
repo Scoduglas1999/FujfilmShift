@@ -81,8 +81,7 @@ class CameraConnectionCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildCameraInfo(BuildContext context, dynamic cameraInfo) {
-    return Container(
+  Widget _buildCameraInfo(BuildContext context, cameraInfo) => Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
@@ -92,7 +91,7 @@ class CameraConnectionCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            '${cameraInfo.model} • ${cameraInfo.serialNumber}',
+            "${cameraInfo.model} • ${cameraInfo.serialNumber}",
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w500,
             ),
@@ -108,8 +107,8 @@ class CameraConnectionCard extends ConsumerWidget {
               const SizedBox(width: 4),
               Text(
                 cameraInfo.battery != null
-                    ? '${cameraInfo.battery.capacity}%'
-                    : 'Battery: Unknown',
+                    ? "${cameraInfo.battery.capacity}%"
+                    : "Battery: Unknown",
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const Spacer(),
@@ -118,11 +117,11 @@ class CameraConnectionCard extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: cameraInfo.supportsPixelShift
                       ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.surfaceVariant,
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  cameraInfo.supportsPixelShift ? 'Pixel Shift' : 'Standard',
+                  cameraInfo.supportsPixelShift ? "Pixel Shift" : "Standard",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: cameraInfo.supportsPixelShift
                         ? Theme.of(context).colorScheme.onPrimary
@@ -136,7 +135,6 @@ class CameraConnectionCard extends ConsumerWidget {
         ],
       ),
     );
-  }
 
   Widget _buildCameraSelection(BuildContext context, WidgetRef ref) {
     final availableCameras = ref.watch(availableCamerasProvider);
@@ -145,7 +143,7 @@ class CameraConnectionCard extends ConsumerWidget {
       return SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
-          onPressed: _scanForCameras,
+          onPressed: () => _scanForCameras(context, ref),
           icon: const Icon(Icons.search_outlined),
           label: const Text('Scan for Cameras'),
         ),
@@ -154,7 +152,7 @@ class CameraConnectionCard extends ConsumerWidget {
 
     return Column(
       children: <Widget>[
-        ...availableCameras.map((camera) => Padding(
+        ...availableCameras.map((CameraInfo camera) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: SizedBox(
             width: double.infinity,
@@ -167,12 +165,12 @@ class CameraConnectionCard extends ConsumerWidget {
               ),
             ),
           ),
-        )),
+        ),),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: _scanForCameras,
+            onPressed: () => _scanForCameras(context, ref),
             icon: const Icon(Icons.refresh_outlined),
             label: const Text('Rescan'),
           ),
@@ -181,14 +179,13 @@ class CameraConnectionCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildConnectedActions(BuildContext context, WidgetRef ref) {
-    return Row(
+  Widget _buildConnectedActions(BuildContext context, WidgetRef ref) => Row(
       children: <Widget>[
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () => _disconnectCamera(context, ref),
             icon: const Icon(Icons.link_off_outlined),
-            label: const Text('Disconnect'),
+            label: const Text("Disconnect"),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -199,7 +196,7 @@ class CameraConnectionCard extends ConsumerWidget {
           child: ElevatedButton.icon(
             onPressed: () => _navigateToCameraDashboard(context),
             icon: const Icon(Icons.camera_alt_outlined),
-            label: const Text('Details'),
+            label: const Text("Details"),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -207,10 +204,8 @@ class CameraConnectionCard extends ConsumerWidget {
         ),
       ],
     );
-  }
 
-  Widget _buildConnectingState(BuildContext context) {
-    return Container(
+  Widget _buildConnectingState(BuildContext context) => Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -221,11 +216,10 @@ class CameraConnectionCard extends ConsumerWidget {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           SizedBox(width: 12),
-          Text('Connecting to camera...'),
+          Text("Connecting to camera..."),
         ],
       ),
     );
-  }
 
   Widget _buildErrorState(BuildContext context, WidgetRef ref) {
     final error = ref.watch(cameraErrorProvider);
@@ -301,7 +295,7 @@ class CameraConnectionCard extends ConsumerWidget {
   String _getConnectionDescription(
     BuildContext context,
     ConnectionStatus status,
-    dynamic cameraInfo,
+    cameraInfo,
   ) {
     switch (status) {
       case ConnectionStatus.connected:
@@ -320,7 +314,7 @@ class CameraConnectionCard extends ConsumerWidget {
     }
   }
 
-  Color _getBatteryColor(BuildContext context, dynamic batteryStatus) {
+  Color _getBatteryColor(BuildContext context, batteryStatus) {
     if (batteryStatus == null) return Theme.of(context).colorScheme.onSurfaceVariant;
 
     switch (batteryStatus) {
@@ -369,13 +363,22 @@ class CameraConnectionCard extends ConsumerWidget {
   void _navigateToCameraDashboard(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const CameraDashboardPage()),
+      MaterialPageRoute(builder: (BuildContext context) => const CameraDashboardPage()),
     );
   }
 
-  void _scanForCameras() {
-    // Camera detection is handled automatically by the provider
-    // This is just for UI feedback
+  void _scanForCameras(BuildContext context, WidgetRef ref) {
+    // Trigger manual camera detection
+    ref.read(cameraProvider.notifier).detectCameras();
+    
+    // Show feedback to user
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Scanning for connected Fujifilm cameras...'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _retryConnection(BuildContext context, WidgetRef ref) {

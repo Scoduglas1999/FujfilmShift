@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/camera_provider.dart';
 import '../../data/models/camera_models.dart';
+import '../widgets/camera_settings_manager.dart';
 import '../widgets/pixel_shift_controls.dart';
 
 class CameraDashboardPage extends ConsumerStatefulWidget {
@@ -48,8 +49,7 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
     );
   }
 
-  Widget _buildNoCameraState(BuildContext context) {
-    return Padding(
+  Widget _buildNoCameraState(BuildContext context) => Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -61,7 +61,7 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
           ),
           const SizedBox(height: 24),
           Text(
-            'No Camera Connected',
+            "No Camera Connected",
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -69,7 +69,7 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Connect your Fujifilm camera from the home screen to view detailed information.',
+            "Connect your Fujifilm camera from the home screen to view detailed information.",
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -81,7 +81,7 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
             child: ElevatedButton.icon(
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.arrow_back),
-              label: const Text('Go Back'),
+              label: const Text("Go Back"),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
@@ -90,10 +90,8 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
         ],
       ),
     );
-  }
 
-  Widget _buildCameraDetails(BuildContext context, dynamic cameraInfo) {
-    return SingleChildScrollView(
+  Widget _buildCameraDetails(BuildContext context, cameraInfo) => SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,13 +119,16 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
 
           // Connection details
           _buildConnectionCard(context, cameraInfo),
+ 
+          const SizedBox(height: 24),
+ 
+          // Settings Management Card
+          CameraSettingsManager(cameraService: ref.read(cameraServiceProvider)),
         ],
       ),
     );
-  }
 
-  Widget _buildCameraHeaderCard(BuildContext context, dynamic cameraInfo) {
-    return Card(
+  Widget _buildCameraHeaderCard(BuildContext context, cameraInfo) => Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -165,14 +166,14 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Serial: ${cameraInfo.serialNumber}',
+                    "Serial: ${cameraInfo.serialNumber}",
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Firmware: ${cameraInfo.firmwareVersion}',
+                    "Firmware: ${cameraInfo.firmwareVersion}",
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -185,11 +186,11 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
               decoration: BoxDecoration(
                 color: cameraInfo.supportsPixelShift
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.surfaceVariant,
+                    : Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
-                cameraInfo.supportsPixelShift ? 'Pixel Shift Ready' : 'Standard',
+                cameraInfo.supportsPixelShift ? "Pixel Shift Ready" : "Standard",
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: cameraInfo.supportsPixelShift
                       ? Theme.of(context).colorScheme.onPrimary
@@ -202,9 +203,8 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
         ),
       ),
     );
-  }
 
-  Widget _buildSpecificationsCard(BuildContext context, dynamic cameraInfo) {
+  Widget _buildSpecificationsCard(BuildContext context, cameraInfo) {
     final specs = cameraInfo.specs;
 
     return Card(
@@ -240,8 +240,7 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
     );
   }
 
-  Widget _buildBatteryCard(BuildContext context, dynamic battery) {
-    return Card(
+  Widget _buildBatteryCard(BuildContext context, battery) => Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -263,14 +262,14 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Battery',
+                  "Battery",
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const Spacer(),
                 Text(
-                  '${battery.capacity}%',
+                  "${battery.capacity}%",
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: _getBatteryColor(context, battery.status),
                     fontWeight: FontWeight.w600,
@@ -281,7 +280,7 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
             const SizedBox(height: 16),
             LinearProgressIndicator(
               value: battery.capacity / 100,
-              backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation<Color>(
                 _getBatteryColor(context, battery.status),
               ),
@@ -292,7 +291,7 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
                 Expanded(
                   child: _buildBatteryDetail(
                     context,
-                    'Status',
+                    "Status",
                     _getBatteryStatusText(battery.status),
                   ),
                 ),
@@ -300,8 +299,8 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
                 Expanded(
                   child: _buildBatteryDetail(
                     context,
-                    'Time Remaining',
-                    '${battery.remainingTime} min',
+                    "Time Remaining",
+                    "${battery.remainingTime} min",
                   ),
                 ),
               ],
@@ -310,7 +309,6 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
         ),
       ),
     );
-  }
 
   Widget _buildPixelShiftCard(BuildContext context, CameraInfo cameraInfo) {
     final pixelShiftState = ref.watch(pixelShiftStateProvider);
@@ -354,12 +352,12 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
               decoration: BoxDecoration(
                 color: cameraInfo.supportsPixelShift
                     ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-                    : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                    : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 cameraInfo.supportsPixelShift
-                    ? 'This camera supports Fujifilm\'s advanced pixel-shift technology for ultra-high resolution images with improved color accuracy and reduced noise.'
+                    ? "This camera supports Fujifilm's advanced pixel-shift technology for ultra-high resolution images with improved color accuracy and reduced noise."
                     : 'This camera model does not support pixel-shift functionality. Consider using an X-T5, X-H2, or GFX series camera for pixel-shift features.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: cameraInfo.supportsPixelShift
@@ -368,7 +366,7 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
                 ),
               ),
             ),
-            if (cameraInfo.supportsPixelShift) ...[
+            if (cameraInfo.supportsPixelShift) ...<Widget>[
               const SizedBox(height: 20),
               const Divider(),
               const SizedBox(height: 20),
@@ -394,8 +392,7 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
     );
   }
 
-  Widget _buildConnectionCard(BuildContext context, dynamic cameraInfo) {
-    return Card(
+  Widget _buildConnectionCard(BuildContext context, cameraInfo) => Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -409,29 +406,27 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'Connection Details',
+              "Connection Details",
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 16),
-            _buildSpecRow(context, 'Connection Type', cameraInfo.connectionType.toUpperCase()),
+            _buildSpecRow(context, "Connection Type", cameraInfo.connectionType.toUpperCase()),
             const SizedBox(height: 12),
-            _buildSpecRow(context, 'Status', 'Connected'),
+            _buildSpecRow(context, "Status", "Connected"),
           ],
         ),
       ),
     );
-  }
 
-  Widget _buildSpecRow(BuildContext context, String label, String value) {
-    return Row(
+  Widget _buildSpecRow(BuildContext context, String label, String value) => Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         SizedBox(
           width: 120,
           child: Text(
-            '$label:',
+            "$label:",
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
@@ -448,10 +443,8 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
         ),
       ],
     );
-  }
 
-  Widget _buildBatteryDetail(BuildContext context, String label, String value) {
-    return Column(
+  Widget _buildBatteryDetail(BuildContext context, String label, String value) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
@@ -469,9 +462,8 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
         ),
       ],
     );
-  }
 
-  IconData _getBatteryIcon(dynamic batteryStatus) {
+  IconData _getBatteryIcon(batteryStatus) {
     switch (batteryStatus) {
       case BatteryStatus.full:
         return Icons.battery_full;
@@ -488,7 +480,7 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
     }
   }
 
-  Color _getBatteryColor(BuildContext context, dynamic batteryStatus) {
+  Color _getBatteryColor(BuildContext context, batteryStatus) {
     switch (batteryStatus) {
       case BatteryStatus.full:
         return Theme.of(context).colorScheme.secondary;
@@ -505,7 +497,7 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
     }
   }
 
-  String _getBatteryStatusText(dynamic batteryStatus) {
+  String _getBatteryStatusText(batteryStatus) {
     switch (batteryStatus) {
       case BatteryStatus.full:
         return 'Full';

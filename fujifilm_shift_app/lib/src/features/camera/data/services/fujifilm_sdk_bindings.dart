@@ -48,7 +48,26 @@ const int XSDK_DRIVE_MODE_PIXELSHIFTMULTISHOT_FEWERFRAMES = 0x0012;
 const int XSDK_DRIVE_MODE_INVALID = 0xFFFF;
 
 // Release Mode
-const int XSDK_RELEASE_PIXELSHIFT = 0x0020;
+const int XSDK_RELEASE_PIXELSHIFT = 0x4000;
+
+// Generic Release Mode
+const int XSDK_RELEASE_SHOOT_S1OFF = 0x0001; // Equivalent to a full shutter press
+
+// Media Record Mode
+const int XSDK_MEDIAREC_OFF = 0x0000;
+const int XSDK_MEDIAREC_RAW = 0x0001;
+const int XSDK_MEDIAREC_JPEG = 0x0002;
+const int XSDK_MEDIAREC_RAWJPEG = 0x0003;
+
+// Legacy aliases for compatibility
+const int XSDK_MEDIARECORD_OFF = XSDK_MEDIAREC_OFF;
+const int XSDK_MEDIARECORD_RAW = XSDK_MEDIAREC_RAW;
+const int XSDK_MEDIARECORD_JPG = XSDK_MEDIAREC_JPEG;
+const int XSDK_MEDIARECORD_RAW_JPG = XSDK_MEDIAREC_RAWJPEG;
+
+// Force Mode (Operation Mode Control)
+const int XSDK_FORCESHOOTSTANDBY_SHOOT = 0x0001;
+const int XSDK_FORCESHOOTSTANDBY_PLAYBACK = 0x0002;
 
 // Still Mode
 const int XSDK_MODE_S = 1;
@@ -59,6 +78,25 @@ const int XSDK_IMAGEFORMAT_NONE = 0;
 // API Error Codes
 const int API_CODE_Init = 0x1001;
 const int API_CODE_Exit = 0x1002;
+
+// Pre-flight Checklist API Property Codes
+const int API_CODE_SHUTTER_TYPE = 0x4002;
+const int API_CODE_IMAGE_STABILIZATION = 0x400A;
+const int API_CODE_CAPTURE_DELAY = 0x400B; // Self-Timer
+const int API_CODE_FOCUS_MODE = 0x1343;
+const int API_CODE_LONG_EXPOSURE_NR = 0x4016;
+
+// Pre-flight Checklist API Property Values
+const int VAL_SHUTTER_TYPE_ELECTRONIC = 2;
+const int VAL_IMAGE_STABILIZATION_OFF = 0;
+const int VAL_CAPTURE_DELAY_OFF = 0;
+const int VAL_FOCUS_MODE_MANUAL = 1;
+const int VAL_LONG_EXPOSURE_NR_OFF = 0;
+
+// AE Mode Values
+const int VAL_AEMODE_MANUAL = 1;
+
+
 const int API_CODE_CapPixelShiftSettings = 0x407A;
 const int API_CODE_StartLiveView = 0x3301;
 const int API_CODE_StopLiveView = 0x3302;
@@ -315,6 +353,8 @@ typedef XSDK_GetBufferCapacity = int Function(
 typedef XSDK_ReadImage = int Function(Pointer<Void> hCamera,
     Pointer<Uint8> pData, int ulDataSize, Pointer<Int32> pulReadSize,);
 
+typedef XSDK_DeleteImage = int Function(Pointer<Void> hCamera, int lIndex);
+
 // Property Functions
 typedef XSDK_SetProp = int Function(
     Pointer<Void> hCamera, int lAPICode, int lAPIParam,);
@@ -330,6 +370,16 @@ typedef XSDK_CapDriveMode = int Function(Pointer<Void> hCamera,
     Pointer<Int32> plNumDriveMode, Pointer<Int32> plDriveMode,);
 typedef XSDK_SetDriveMode = int Function(Pointer<Void> hCamera, int lMode);
 
+// Media Record Bindings
+typedef XSDK_SetMediaRecord = int Function(Pointer<Void> hCamera, int lMode);
+typedef XSDK_GetMediaRecord = int Function(
+    Pointer<Void> hCamera, Pointer<Int32> plMode,);
+
+// Force Mode Bindings (Operation Mode Control)
+typedef XSDK_SetForceMode = int Function(Pointer<Void> hCamera, int lForceMode);
+typedef XSDK_CapForceMode = int Function(
+    Pointer<Void> hCamera, Pointer<Int32> plNumForceMode, Pointer<Int32> plForceMode,);
+
 // Mode Bindings
 typedef XSDK_CapMode = int Function(
     Pointer<Void> hCamera, Pointer<Int32> plNumMode, Pointer<Int32> plMode,);
@@ -341,6 +391,10 @@ typedef XSDK_GetMode = int Function(Pointer<Void> hCamera, Pointer<Int32> plMode
 // Release Binding
 typedef XSDK_Release = int Function(
     Pointer<Void> hCamera, int lMode, Pointer<Int32> pShotOpt, Pointer<Int32> pStatus,);
+
+// Release Ex Binding (for Camera Priority mode)
+typedef XSDK_ReleaseEx = int Function(
+    Pointer<Void> hCamera, int ulMode, Pointer<Int32> pShotOpt, Pointer<Int32> pStatus,);
 
 // Pixel Shift Bindings
 typedef XSDK_StartPixelShiftShooting = int Function(Pointer<Void> hCamera);
@@ -363,6 +417,12 @@ typedef XSDK_GetContentInfo = int Function(Pointer<Void> hCamera, int lIndex,
 
 typedef XSDK_GetContentData = int Function(Pointer<Void> hCamera, int lIndex,
     Pointer<Uint8> pBuffer, int lBufferSize,);
+
+// Backup/Restore Settings Bindings
+typedef XSDK_GetBackupSettings = int Function(
+    Pointer<Void> hCamera, Pointer<Int32> plSize, Pointer<Uint8> pBackup,);
+typedef XSDK_SetBackupSettings = int Function(
+    Pointer<Void> hCamera, int lSize, Pointer<Uint8> pBackup,);
 
 
 // Dart wrapper functions with null safety
@@ -438,6 +498,9 @@ class FujifilmSDK {
       .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Uint8>, Int32, Pointer<Int32>)>>('XSDK_ReadImage')
       .asFunction<XSDK_ReadImage>();
 
+  static final XSDK_DeleteImage _xsdkDeleteImage =
+      _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32)>>('XSDK_DeleteImage').asFunction<XSDK_DeleteImage>();
+
   // Property functions
   static final XSDK_SetProp _xsdkSetProp = _lib
       .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32, Int32)>>('XSDK_SetProp')
@@ -456,9 +519,24 @@ class FujifilmSDK {
   static final XSDK_SetDriveMode _xsdkSetDriveMode =
       _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32)>>('XSDK_SetDriveMode').asFunction<XSDK_SetDriveMode>();
 
+  // Media Record functions
+  static final XSDK_SetMediaRecord _xsdkSetMediaRecord = _lib
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32)>>(
+          'XSDK_SetMediaRecord',)
+      .asFunction<XSDK_SetMediaRecord>();
+  static final XSDK_GetMediaRecord _xsdkGetMediaRecord = _lib
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>)>>(
+          'XSDK_GetMediaRecord',)
+      .asFunction<XSDK_GetMediaRecord>();
+
+  // Force Mode functions (Operation Mode Control)
+  static final XSDK_SetForceMode _xsdkSetForceMode =
+      _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32)>>('XSDK_SetForceMode').asFunction<XSDK_SetForceMode>();
+  static final XSDK_CapForceMode _xsdkCapForceMode = _lib
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>, Pointer<Int32>)>>('XSDK_CapForceMode')
+      .asFunction<XSDK_CapForceMode>();
+
   // Mode functions
-  static final XSDK_CapMode _xsdkCapMode =
-      _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>, Pointer<Int32>)>>('XSDK_CapMode').asFunction<XSDK_CapMode>();
   static final XSDK_SetMode _xsdkSetMode =
       _lib.lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32)>>('XSDK_SetMode').asFunction<XSDK_SetMode>();
   static final XSDK_GetMode _xsdkGetMode =
@@ -468,6 +546,11 @@ class FujifilmSDK {
   static final XSDK_Release _xsdkRelease = _lib
       .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32, Pointer<Int32>, Pointer<Int32>)>>('XSDK_Release')
       .asFunction<XSDK_Release>();
+
+  // Release Ex function (for Camera Priority mode)
+  static final XSDK_ReleaseEx _xsdkReleaseEx = _lib
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32, Pointer<Int32>, Pointer<Int32>)>>('XSDK_ReleaseEx')
+      .asFunction<XSDK_ReleaseEx>();
 
   // Pixel Shift functions
   static final XSDK_StartPixelShiftShooting _xsdkStartPixelShiftShooting = _lib
@@ -500,6 +583,14 @@ class FujifilmSDK {
   static final XSDK_GetContentData _xsdkGetContentData = _lib
       .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32, Pointer<Uint8>, Int32)>>('XSDK_GetContentData')
       .asFunction<XSDK_GetContentData>();
+
+  // Backup/Restore Settings functions
+  static final XSDK_GetBackupSettings _xsdkGetBackupSettings = _lib
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>, Pointer<Uint8>)>>('XSDK_GetBackupSettings')
+      .asFunction<XSDK_GetBackupSettings>();
+  static final XSDK_SetBackupSettings _xsdkSetBackupSettings = _lib
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Int32, Pointer<Uint8>)>>('XSDK_SetBackupSettings')
+      .asFunction<XSDK_SetBackupSettings>();
 
 
   static int xsdkInit(Pointer<Void> hLib) => _xsdkInit(hLib);
@@ -556,6 +647,8 @@ class FujifilmSDK {
   static int xsdkReadImage(Pointer<Void> hCamera, Pointer<Uint8> pData,
       int ulDataSize, Pointer<Int32> pulReadSize,) => _xsdkReadImage(hCamera, pData, ulDataSize, pulReadSize);
 
+  static int xsdkDeleteImage(Pointer<Void> hCamera, int lIndex) => _xsdkDeleteImage(hCamera, lIndex);
+
   static int xsdkSetProp(Pointer<Void> hCamera, int lAPICode, int lAPIParam) => _xsdkSetProp(hCamera, lAPICode, lAPIParam);
 
   static int xsdkGetProp(
@@ -569,12 +662,27 @@ class FujifilmSDK {
 
   static int xsdkSetDriveMode(Pointer<Void> hCamera, int lMode) => _xsdkSetDriveMode(hCamera, lMode);
 
+  static int xsdkSetMediaRecord(Pointer<Void> hCamera, int lMode) =>
+      _xsdkSetMediaRecord(hCamera, lMode);
+  static int xsdkGetMediaRecord(
+          Pointer<Void> hCamera, Pointer<Int32> plMode,) =>
+      _xsdkGetMediaRecord(hCamera, plMode);
+
+  static int xsdkSetForceMode(Pointer<Void> hCamera, int lForceMode) =>
+      _xsdkSetForceMode(hCamera, lForceMode);
+  static int xsdkCapForceMode(Pointer<Void> hCamera,
+      Pointer<Int32> plNumForceMode, Pointer<Int32> plForceMode,) =>
+      _xsdkCapForceMode(hCamera, plNumForceMode, plForceMode);
+
   static int xsdkGetMode(Pointer<Void> hCamera, Pointer<Int32> plMode) => _xsdkGetMode(hCamera, plMode);
 
   static int xsdkSetMode(Pointer<Void> hCamera, int lMode) => _xsdkSetMode(hCamera, lMode);
 
   static int xsdkRelease(
       Pointer<Void> hCamera, int lMode, Pointer<Int32> pShotOpt, Pointer<Int32> pStatus,) => _xsdkRelease(hCamera, lMode, pShotOpt, pStatus);
+
+  static int xsdkReleaseEx(
+      Pointer<Void> hCamera, int ulMode, Pointer<Int32> pShotOpt, Pointer<Int32> pStatus,) => _xsdkReleaseEx(hCamera, ulMode, pShotOpt, pStatus);
 
   static int xsdkStartPixelShiftShooting(Pointer<Void> hCamera) => _xsdkStartPixelShiftShooting(hCamera);
 
@@ -593,6 +701,12 @@ class FujifilmSDK {
 
   static int xsdkGetContentData(Pointer<Void> hCamera, int lIndex,
       Pointer<Uint8> pBuffer, int lBufferSize,) => _xsdkGetContentData(hCamera, lIndex, pBuffer, lBufferSize);
+
+  static int xsdkGetBackupSettings(Pointer<Void> hCamera,
+      Pointer<Int32> plSize, Pointer<Uint8> pBackup,) => _xsdkGetBackupSettings(hCamera, plSize, pBackup);
+
+  static int xsdkSetBackupSettings(
+      Pointer<Void> hCamera, int lSize, Pointer<Uint8> pBackup,) => _xsdkSetBackupSettings(hCamera, lSize, pBackup);
 }
 
 // Helper functions for string conversion
