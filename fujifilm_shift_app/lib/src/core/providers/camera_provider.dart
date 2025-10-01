@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/camera/data/models/camera_models.dart';
 import '../../features/camera/data/services/camera_service.dart';
 
+export '../../features/camera/data/services/camera_service.dart' show SDCardFile;
+
 /// Provider for camera state management
 final Provider<CameraService> cameraServiceProvider = Provider<CameraService>((ProviderRef<CameraService> ref) {
   // Use the real Fujifilm SDK service (singleton instance)
@@ -138,9 +140,9 @@ class CameraNotifier extends StateNotifier<CameraState> {
     }
   }
 
-  Future<void> startPixelShift(PixelShiftSettings settings) async {
+  Future<void> startPixelShift(PixelShiftSettings settings, {String? downloadLocation}) async {
     try {
-      await _cameraService.startPixelShift(settings);
+      await _cameraService.startPixelShift(settings, downloadLocation: downloadLocation);
     } catch (e) {
       // Error is already handled and pushed to the stream in the service
     }
@@ -166,6 +168,30 @@ class CameraNotifier extends StateNotifier<CameraState> {
       } catch (e) {
         // Silent fail for refresh
       }
+    }
+  }
+
+  Future<bool> takeTestShot() async {
+    try {
+      return await _cameraService.takeTestShot();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<List<SDCardFile>> listSDCardFiles() async {
+    try {
+      return await _cameraService.listSDCardFiles();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<bool> downloadFileFromSDCard(int fileIndex, String destinationPath) async {
+    try {
+      return await _cameraService.downloadFileFromSDCard(fileIndex, destinationPath);
+    } catch (e) {
+      return false;
     }
   }
 

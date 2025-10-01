@@ -159,7 +159,11 @@ final class XSDK_LensInformation extends Struct {
 }
 
 // Image Information Structure
+@Packed(1)
 final class XSDK_ImageInformation extends Struct {
+  @Array(32)
+  external Array<Uint8> strInternalName;
+
   @Int32()
   external int lFormat;
 
@@ -167,16 +171,18 @@ final class XSDK_ImageInformation extends Struct {
   external int lDataSize;
 
   @Int32()
-  external int lWidth;
+  external int lImagePixHeight;
 
   @Int32()
-  external int lHeight;
+  external int lImagePixWidth;
 
   @Int32()
-  external int lOrientation;
+  external int lImageBitDepth;
 
-  @Array(10)
-  external Array<Int32> lUnused;
+  @Int32()
+  external int lPreviewSize;
+
+  external Pointer<Void> hImage;
 }
 
 // Pixel Shift Information Structure
@@ -342,16 +348,16 @@ typedef XSDK_GetPriorityMode = int Function(
     Pointer<Void> hCamera,
     Pointer<Int32> plPriorityMode,);
 
-typedef XSDK_ReadImageInfo = int Function(Pointer<Void> hCamera,
-    Pointer<XSDK_ImageInformation> pImgInfo, Pointer<Int32> plPreviewSize,);
+typedef XSDK_ReadImageInfo = int Function(
+    Pointer<Void> hCamera, Pointer<XSDK_ImageInformation> pImgInfo,);
 
 typedef XSDK_GetBufferCapacity = int Function(
     Pointer<Void> hCamera,
     Pointer<Int32> plShootFrameNum,
     Pointer<Int32> plTotalFrameNum,);
 
-typedef XSDK_ReadImage = int Function(Pointer<Void> hCamera,
-    Pointer<Uint8> pData, int ulDataSize, Pointer<Int32> pulReadSize,);
+typedef XSDK_ReadImage = int Function(
+    Pointer<Void> hCamera, Pointer<Uint8> pData, int ulDataSize,);
 
 typedef XSDK_DeleteImage = int Function(Pointer<Void> hCamera, int lIndex);
 
@@ -488,14 +494,14 @@ class FujifilmSDK {
           'XSDK_GetPriorityMode',)
       .asFunction<XSDK_GetPriorityMode>();
   static final XSDK_ReadImageInfo _xsdkReadImageInfo = _lib
-      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<XSDK_ImageInformation>, Pointer<Int32>)>>('XSDK_ReadImageInfo')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<XSDK_ImageInformation>)>>('XSDK_ReadImageInfo')
       .asFunction<XSDK_ReadImageInfo>();
   static final XSDK_GetBufferCapacity _xsdkGetBufferCapacity = _lib
       .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Int32>, Pointer<Int32>)>>(
           'XSDK_GetBufferCapacity',)
       .asFunction<XSDK_GetBufferCapacity>();
   static final XSDK_ReadImage _xsdkReadImage = _lib
-      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Uint8>, Int32, Pointer<Int32>)>>('XSDK_ReadImage')
+      .lookup<NativeFunction<Int32 Function(Pointer<Void>, Pointer<Uint8>, Int32)>>('XSDK_ReadImage')
       .asFunction<XSDK_ReadImage>();
 
   static final XSDK_DeleteImage _xsdkDeleteImage =
@@ -637,15 +643,15 @@ class FujifilmSDK {
       Pointer<Void> hCamera, Pointer<Int32> plPriorityMode,) => _xsdkGetPriorityMode(hCamera, plPriorityMode);
 
   static int xsdkReadImageInfo(
-      Pointer<Void> hCamera,
-      Pointer<XSDK_ImageInformation> pImgInfo,
-      Pointer<Int32> plPreviewSize,) => _xsdkReadImageInfo(hCamera, pImgInfo, plPreviewSize);
+      Pointer<Void> hCamera, Pointer<XSDK_ImageInformation> pImgInfo,) =>
+      _xsdkReadImageInfo(hCamera, pImgInfo);
 
   static int xsdkGetBufferCapacity(Pointer<Void> hCamera,
       Pointer<Int32> plShootFrameNum, Pointer<Int32> plTotalFrameNum,) => _xsdkGetBufferCapacity(hCamera, plShootFrameNum, plTotalFrameNum);
 
-  static int xsdkReadImage(Pointer<Void> hCamera, Pointer<Uint8> pData,
-      int ulDataSize, Pointer<Int32> pulReadSize,) => _xsdkReadImage(hCamera, pData, ulDataSize, pulReadSize);
+  static int xsdkReadImage(
+      Pointer<Void> hCamera, Pointer<Uint8> pData, int ulDataSize,) =>
+      _xsdkReadImage(hCamera, pData, ulDataSize);
 
   static int xsdkDeleteImage(Pointer<Void> hCamera, int lIndex) => _xsdkDeleteImage(hCamera, lIndex);
 

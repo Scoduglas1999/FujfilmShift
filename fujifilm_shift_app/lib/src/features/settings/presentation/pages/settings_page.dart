@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 
-import 'package:fujifilm_shift_app/src/core/providers/theme_provider.dart';
+import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/providers/settings_provider.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -9,7 +12,7 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ThemeData theme = Theme.of(context);
-    final themeNotifier = ref.watch(themeProvider.notifier);
+    ThemeNotifier themeNotifier = ref.watch(themeProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
@@ -88,17 +91,7 @@ class SettingsPage extends ConsumerWidget {
                   },
                 ),
               ),
-              _SettingsTile(
-                title: 'Download Location',
-                subtitle: 'Choose where to save captured images',
-                leading: Icon(
-                  Icons.folder_outlined,
-                  color: theme.colorScheme.primary,
-                ),
-                onTap: () {
-                  // TODO: Show folder picker
-                },
-              ),
+              _DownloadLocationTile(ref: ref),
             ],
           ),
 
@@ -169,7 +162,7 @@ class SettingsPage extends ConsumerWidget {
   }
 
   String _getThemeText(WidgetRef ref) {
-    final theme = ref.watch(themeProvider);
+    ThemeMode theme = ref.watch(themeProvider);
     switch (theme) {
       case ThemeMode.system:
         return 'System';
@@ -183,7 +176,7 @@ class SettingsPage extends ConsumerWidget {
   }
 
   IconData _getThemeIcon(WidgetRef ref) {
-    final theme = ref.watch(themeProvider);
+    ThemeMode theme = ref.watch(themeProvider);
     switch (theme) {
       case ThemeMode.system:
         return Icons.brightness_auto;
@@ -255,7 +248,7 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    ThemeData theme = Theme.of(context);
+    final theme = Theme.of(context);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -280,5 +273,91 @@ class _SettingsTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
     );
+  }
+}
+
+class _DownloadLocationTile extends StatelessWidget {
+  const _DownloadLocationTile({required this.ref});
+  
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    final downloadLocation = ref.watch(downloadLocationProvider);
+    final theme = Theme.of(context);
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      leading: Icon(
+        Icons.folder_outlined,
+        color: theme.colorScheme.primary,
+      ),
+      title: Text(
+        'Download Location',
+        style: theme.textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          Text(
+            downloadLocation.isEmpty ? 'Loading...' : downloadLocation,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.edit_outlined),
+        onPressed: () => _pickDirectory(context, ref),
+        tooltip: 'Change location',
+      ),
+      onTap: () => _pickDirectory(context, ref),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+  }
+
+  Future<void> _pickDirectory(BuildContext context, WidgetRef ref) async {
+    try {
+      final result = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Select Download Location',
+      );
+
+      if (result != null) {
+        // Create directory if it doesn't exist
+        final dir = Directory(result);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+
+        await ref.read(downloadLocationProvider.notifier).setDownloadLocation(result);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Download location set to: $result'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to set download location: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 }

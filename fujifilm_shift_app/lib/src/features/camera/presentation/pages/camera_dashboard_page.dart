@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/providers/camera_provider.dart';
+import '../../../../core/providers/settings_provider.dart';
 import '../../data/models/camera_models.dart';
 import '../widgets/camera_settings_manager.dart';
 import '../widgets/pixel_shift_controls.dart';
+import 'sd_card_browser_page.dart';
 
 class CameraDashboardPage extends ConsumerStatefulWidget {
   const CameraDashboardPage({super.key});
@@ -121,7 +124,17 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
           _buildConnectionCard(context, cameraInfo),
  
           const SizedBox(height: 24),
- 
+
+          // Test Shot Card
+          _buildTestShotCard(context),
+
+          const SizedBox(height: 24),
+
+          // SD Card Browser Card
+          _buildSDCardBrowserCard(context),
+
+          const SizedBox(height: 24),
+
           // Settings Management Card
           CameraSettingsManager(cameraService: ref.read(cameraServiceProvider)),
         ],
@@ -372,14 +385,31 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
               const SizedBox(height: 20),
               PixelShiftControls(
                 state: pixelShiftState,
-                onStart: () {
-                  // For now, use default settings. In the future, these could be configurable.
+                onStart: () async {
+                  // Check if download location is set
+                  final downloadLocation = ref.read(downloadLocationProvider);
+                  
+                  String? finalDownloadLocation = downloadLocation;
+                  
+                  // If no download location is set, prompt user to select one
+                  if (downloadLocation.isEmpty) {
+                    finalDownloadLocation = await _promptForDownloadLocation(context);
+                    if (finalDownloadLocation == null) {
+                      // User cancelled the dialog
+                      return;
+                    }
+                  }
+                  
+                  // Start pixel shift with download location
                   const settings = PixelShiftSettings(
                     enabled: true,
                     shots: 20, // A common value for high-res pixel shift
                     interval: 1000, // 1 second between shots
                   );
-                  ref.read(cameraProvider.notifier).startPixelShift(settings);
+                  ref.read(cameraProvider.notifier).startPixelShift(
+                    settings,
+                    downloadLocation: finalDownloadLocation,
+                  );
                 },
                 onDownload: () {
                   ref.read(cameraProvider.notifier).downloadPixelShiftImages();
@@ -514,7 +544,204 @@ class _CameraDashboardPageState extends ConsumerState<CameraDashboardPage> {
     }
   }
 
+  Widget _buildTestShotCard(BuildContext context) => Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(
+                  Icons.camera_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Test Shot',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Take a single test shot to verify focus, exposure, and composition before starting the pixel shift sequence.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _takeTestShot,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Take Test Shot'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+  Widget _buildSDCardBrowserCard(BuildContext context) => Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(
+                  Icons.sd_card_outlined,
+                  color: Theme.of(context).colorScheme.secondary,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'SD Card Download',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Browse and download images from your camera\'s SD card. Perfect for retrieving pixel shift sequences.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _openSDCardBrowser,
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Browse SD Card'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
   void _refreshCameraInfo() {
     ref.read(cameraProvider.notifier).refreshCameraInfo();
+  }
+
+  Future<String?> _promptForDownloadLocation(BuildContext context) async {
+    // Show dialog to inform user and get their choice
+    final shouldPick = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Download Location'),
+        content: const Text(
+          'Please select a folder where pixel shift RAF files will be downloaded.\n\n'
+          'This location will be saved for future captures.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Choose Folder'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldPick != true) {
+      return null;
+    }
+
+    // Open folder picker
+    final result = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: 'Select Download Folder for Pixel Shift Images',
+    );
+
+    if (result != null) {
+      // Save the selected location
+      await ref.read(downloadLocationProvider.notifier).setDownloadLocation(result);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download location set to:\n$result'),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      
+      return result;
+    }
+
+    return null;
+  }
+
+  Future<void> _takeTestShot() async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Text('Taking test shot...'),
+        duration: Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    final success = await ref.read(cameraProvider.notifier).takeTestShot();
+
+    scaffoldMessenger.hideCurrentSnackBar();
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          success 
+            ? '✅ Test shot captured! Check your camera\'s SD card.' 
+            : '❌ Test shot failed. Check camera settings.',
+        ),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: success 
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.error,
+      ),
+    );
+  }
+
+  void _openSDCardBrowser() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SDCardBrowserPage()),
+    );
   }
 }

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:io';
 import 'package:ffi/ffi.dart';
+import '../../../stitching/data/services/stitching_service.dart';
 import '../models/camera_models.dart';
 import 'fujifilm_sdk_bindings.dart';
 import 'dart:typed_data';
@@ -41,16 +43,46 @@ abstract class CameraService {
   Stream<PixelShiftState> get pixelShiftState;
 
   /// Start the pixel shift process
-  Future<void> startPixelShift(PixelShiftSettings settings);
+  Future<void> startPixelShift(PixelShiftSettings settings, {String? downloadLocation});
 
-  /// Download images after pixel shift
+  /// Download images after pixel shift (deprecated - now automatic)
   Future<List<String>> downloadPixelShiftImages();
+
+  /// Download all RAF files from SD card to destination folder
+  Future<List<String>> downloadAllRAFFiles(String destinationFolder);
+
+  /// Download images from camera buffer dynamically during pixel shift
+  Future<List<String>> downloadImagesFromBuffer(String destinationFolder, {int expectedCount = 16, Duration timeout = const Duration(minutes: 5)});
 
   /// Gets the camera's current configuration as a raw byte array.
   Future<Uint8List?> getCameraSettings();
 
   /// Sets the camera's configuration from a raw byte array.
   Future<bool> setCameraSettings(Uint8List settings);
+
+  /// Takes a single test shot
+  Future<bool> takeTestShot();
+
+  /// Lists files on camera's SD card
+  Future<List<SDCardFile>> listSDCardFiles();
+
+  /// Downloads a file from camera's SD card
+  Future<bool> downloadFileFromSDCard(int fileIndex, String destinationPath);
+}
+
+/// Model for SD card file information
+class SDCardFile {
+  final int index;
+  final String fileName;
+  final int fileSize;
+  final bool isFolder;
+
+  SDCardFile({
+    required this.index,
+    required this.fileName,
+    required this.fileSize,
+    required this.isFolder,
+  });
 }
 
 /// Fujifilm camera service implementation
@@ -560,7 +592,7 @@ class FujifilmCameraService implements CameraService {
 
 
   @override
-  Future<void> startPixelShift(PixelShiftSettings settings) async {
+  Future<void> startPixelShift(PixelShiftSettings settings, {String? downloadLocation}) async {
     _validateSDKInitialized();
     _validateCameraConnected();
 
@@ -583,70 +615,61 @@ class FujifilmCameraService implements CameraService {
 
     // HYBRID SOLUTION: The SDK's tethering buffer cannot handle Pixel Shift's 16 large RAW images.
     // Solution: Configure camera via SDK, then use Camera Priority mode for manual shutter trigger.
-    await _startPixelShiftHybridMode(settings);
+    await _startPixelShiftHybridMode(settings, downloadLocation: downloadLocation);
   }
 
-  /// Smart Pixel Shift implementation using priority mode switching
-  /// This avoids the volatile buffer overflow by using Camera Priority mode for the trigger
-  Future<void> _startPixelShiftHybridMode(PixelShiftSettings settings) async {
+  /// Fixed Pixel Shift implementation - stays in PC Priority, uses manual trigger, saves to SD
+  Future<void> _startPixelShiftHybridMode(PixelShiftSettings settings, {String? downloadLocation}) async {
     int originalDriveMode = XSDK_DRIVE_MODE_S;
-    int originalPriorityMode = XSDK_PRIORITY_PC;
-    bool needToRestorePriority = false;
+    int originalMediaRecord = XSDK_MEDIAREC_OFF;
 
     try {
       print('--- Starting Pixel Shift Setup ---');
-      print('[Info] Implementing buffer overflow workaround...');
+      print('[Info] Configuring camera for manual Pixel Shift trigger...');
       
       _pixelShiftStateController.add(PixelShiftState(
         status: PixelShiftStatus.starting,
         message: 'Configuring camera for Pixel Shift...',
       ));
 
-      // 1. Save current priority mode
-      final priorityModePtr = malloc<Int32>();
-      try {
-        if (FujifilmSDK.xsdkGetPriorityMode(_cameraHandle!, priorityModePtr) == 0) {
-          originalPriorityMode = priorityModePtr.value;
-          print('[Pixel Shift] Current priority mode: ${originalPriorityMode == XSDK_PRIORITY_PC ? "PC" : "CAMERA"}');
-        }
-      } finally {
-        malloc.free(priorityModePtr);
-      }
-
-      // 2. Ensure we're in PC Priority to configure settings
-      if (originalPriorityMode != XSDK_PRIORITY_PC) {
-        print('[Pixel Shift] Switching to PC Priority for configuration...');
-        final pcResult = FujifilmSDK.xsdkSetPriorityMode(_cameraHandle!, XSDK_PRIORITY_PC);
-        if (pcResult != 0) {
-          throw Exception('Failed to set PC Priority mode for configuration');
-        }
-        await Future.delayed(const Duration(milliseconds: 200));
-      }
-
-      // 3. Save current drive mode
+      // 1. Save current drive mode
       final driveModePtr = malloc<Int32>();
       try {
         if (FujifilmSDK.xsdkGetProp(_cameraHandle!, 0x1340, driveModePtr) == 0) {
           originalDriveMode = driveModePtr.value;
+          print('[Pixel Shift] Saved original drive mode: $originalDriveMode');
         }
       } finally {
         malloc.free(driveModePtr);
       }
 
-      // 4. Set MediaRecord to save to SD card
-      print('[Pixel Shift] 1. Configuring media recording to SD card...');
+      // 2. Save current media record setting
+      final mediaRecordPtr = malloc<Int32>();
+      try {
+        if (FujifilmSDK.xsdkGetMediaRecord(_cameraHandle!, mediaRecordPtr) == 0) {
+          originalMediaRecord = mediaRecordPtr.value;
+          print('[Pixel Shift] Saved original media record: $originalMediaRecord');
+        }
+      } finally {
+        malloc.free(mediaRecordPtr);
+      }
+
+      // 3. Set MediaRecord to RAW so camera writes full-quality files to SD card
+      // We will also transfer to PC via the tether buffer in PC Priority
+      print('[Pixel Shift] 1. Setting MediaRecord to RAW (write to SD card)...');
       final mediaRecordResult = FujifilmSDK.xsdkSetMediaRecord(
         _cameraHandle!,
-        XSDK_MEDIARECORD_RAW, // Save RAW files to SD card
+        XSDK_MEDIARECORD_RAW,
       );
       if (mediaRecordResult != 0) {
-        print('[Warning] SetMediaRecord failed (this may not be critical).');
+        final errorDetails = _getSDKErrorDetails(_cameraHandle);
+        print('[ERROR] Failed to set MediaRecord! Error: $errorDetails');
       } else {
-        print('[Pixel Shift] Media recording configured.');
+        print('[Pixel Shift] ✅ MediaRecord set to RAW - images will save to SD card');
       }
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      // 5. Set Drive Mode to Pixel Shift
+      // 4. Set Drive Mode to Pixel Shift
       print('[Pixel Shift] 2. Setting drive mode to Pixel Shift...');
       final driveModeResult = FujifilmSDK.xsdkSetDriveMode(
         _cameraHandle!,
@@ -658,184 +681,101 @@ class FujifilmCameraService implements CameraService {
             'Failed to set Pixel Shift drive mode. Error: $driveModeResult. Details: $errorDetails',);
       }
       await Future.delayed(const Duration(milliseconds: 500));
-      print('[Pixel Shift] Drive mode set to Pixel Shift.');
+      print('[Pixel Shift] ✅ Drive mode set to Pixel Shift.');
 
-      // 6. CRITICAL WORKAROUND: Switch to Camera Priority mode
-      // This allows the shutter trigger to bypass the volatile memory buffer
-      // and write directly to the SD card
-      print('[Pixel Shift] 3. Switching to Camera Priority mode to bypass buffer...');
-      final cameraPriorityResult = FujifilmSDK.xsdkSetPriorityMode(
-        _cameraHandle!,
-        XSDK_PRIORITY_CAMERA,
-      );
-      if (cameraPriorityResult != 0) {
-        final errorDetails = _getSDKErrorDetails(_cameraHandle);
-        throw Exception(
-            'Failed to switch to Camera Priority mode. Error: $cameraPriorityResult. Details: $errorDetails',);
-      }
-      needToRestorePriority = true;
-      await Future.delayed(const Duration(milliseconds: 500));
-      print('[Pixel Shift] ✅ Now in Camera Priority mode - buffer overflow avoided!');
-
-      // 6.5. Wake camera from standby (if needed)
-      // When switching to Camera Priority, camera may enter standby state
-      // Call SetForceMode to ensure camera is in active SHOOTING mode
-      print('[Pixel Shift] 3.5. Ensuring camera is in SHOOTING mode (not standby)...');
-      final forceModeResult = FujifilmSDK.xsdkSetForceMode(
-        _cameraHandle!,
-        XSDK_FORCESHOOTSTANDBY_SHOOT,
-      );
-      if (forceModeResult != 0) {
-        print('[Warning] SetForceMode failed, but continuing anyway...');
-      } else {
-        print('[Pixel Shift] ✅ Camera is awake and in SHOOTING mode');
-      }
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // 7. Try programmatic shutter release with ReleaseEx (Camera Priority version)
-      // Strategy: Use standard shutter release, let drive mode handle Pixel Shift
-      print('[Pixel Shift] 4. Attempting programmatic shutter release via ReleaseEx...');
-      print('[Pixel Shift]    Using standard shutter release (drive mode is already Pixel Shift)');
-      
-      final shotOptPtr = malloc<Int32>();
-      final statusPtr = malloc<Int32>();
-      
+      // 5. SWITCH TO CAMERA PRIORITY to allow manual shutter press
+      final priorityPtr = malloc<Int32>();
       try {
-        shotOptPtr.value = 1; // For standard release, just 1
-        
-        // Try standard shutter release first (let drive mode handle the sequence)
-        var releaseResult = FujifilmSDK.xsdkReleaseEx(
-          _cameraHandle!,
-          XSDK_RELEASE_SHOOT_S1OFF, // Standard full shutter press
-          shotOptPtr,
-          statusPtr,
-        );
-        
-        if (releaseResult == 0) {
-          print('[Pixel Shift] ✅ SUCCESS! Standard shutter release worked!');
-          print('[Pixel Shift] Camera is executing the Pixel Shift sequence...');
-          print('[Pixel Shift] (Drive mode is Pixel Shift, so 16 shots will be taken)');
-          print('[Pixel Shift] Images are being saved directly to SD card.');
-          print('[Pixel Shift] (Volatile buffer bypassed - no overflow!)');
-          
-          _pixelShiftStateController.add(PixelShiftState(
-            status: PixelShiftStatus.capturing,
-            message: 'Pixel Shift sequence in progress!\n\n'
-                'Camera is capturing 16 high-resolution images.\n'
-                'Images are saving directly to SD card.',
-            progress: 25,
-          ));
-          
-          // Wait for sequence to complete (approximately 30-60 seconds)
-          await Future.delayed(const Duration(seconds: 45));
-          
-          _pixelShiftStateController.add(PixelShiftState(
-            status: PixelShiftStatus.finished,
-            message: 'Pixel Shift sequence complete!\n\n'
-                'Check your camera\'s SD card for 16 RAF files.\n\n'
-                'Buffer overflow workaround: SUCCESS ✅',
-            progress: 100,
-            totalImages: 16,
-            imagesTaken: 16,
-          ));
-          
-          print('[Pixel Shift] Sequence complete.');
-          return; // Success! Exit early
-        } else {
-          final errorDetails = _getSDKErrorDetails(_cameraHandle);
-          print('[Pixel Shift] ⚠️  Standard release failed: $errorDetails');
-          print('[Pixel Shift] Trying XSDK_RELEASE_PIXELSHIFT mode...');
-          
-          // Try pixel shift specific release mode
-          releaseResult = FujifilmSDK.xsdkReleaseEx(
-            _cameraHandle!,
-            XSDK_RELEASE_PIXELSHIFT,
-            shotOptPtr,
-            statusPtr,
-          );
-          
-          if (releaseResult == 0) {
-            print('[Pixel Shift] ✅ Pixel Shift release mode worked!');
-            
-            _pixelShiftStateController.add(PixelShiftState(
-              status: PixelShiftStatus.capturing,
-              message: 'Pixel Shift sequence in progress!\n\n'
-                  'Camera is capturing 16 high-resolution images.\n'
-                  'Images are saving directly to SD card.',
-              progress: 25,
-            ));
-            
-            await Future.delayed(const Duration(seconds: 45));
-            
-            _pixelShiftStateController.add(PixelShiftState(
-              status: PixelShiftStatus.finished,
-              message: 'Pixel Shift sequence complete!\n\n'
-                  'Check your camera\'s SD card for 16 RAF files.',
-              progress: 100,
-              totalImages: 16,
-              imagesTaken: 16,
-            ));
-            
-            return;
-          } else {
-            final errorDetails2 = _getSDKErrorDetails(_cameraHandle);
-            print('[Pixel Shift] ❌ Both release methods failed.');
-            print('[Pixel Shift]    Standard: $errorDetails');
-            print('[Pixel Shift]    Pixel Shift: $errorDetails2');
-            print('[Pixel Shift] Falling back to manual trigger mode...');
+        var curPriority = XSDK_PRIORITY_PC;
+        if (FujifilmSDK.xsdkGetPriorityMode(_cameraHandle!, priorityPtr) == 0) {
+          curPriority = priorityPtr.value;
+        }
+        if (curPriority != XSDK_PRIORITY_CAMERA) {
+          final pr = FujifilmSDK.xsdkSetPriorityMode(_cameraHandle!, XSDK_PRIORITY_CAMERA);
+          if (pr != 0) {
+            final errorDetails = _getSDKErrorDetails(_cameraHandle);
+            throw Exception('Failed to set Camera Priority mode. Details: $errorDetails');
           }
+          await Future.delayed(const Duration(milliseconds: 300));
         }
       } finally {
-        malloc.free(shotOptPtr);
-        malloc.free(statusPtr);
+        malloc.free(priorityPtr);
       }
+      print('[Pixel Shift] 3. Camera Priority mode active (manual shutter enabled)');
+      print('[Pixel Shift] ✅ Camera configured and ready');
 
-      // 8. If programmatic trigger failed, provide user instructions for manual trigger
-      // Camera is already in Camera Priority mode, so manual button press will work
+      // 6. Prompt user to press the shutter manually; begin buffer polling afterwards
       print('[Pixel Shift] ========================================');
-      print('[Pixel Shift] MANUAL TRIGGER MODE');
-      print('[Pixel Shift] (Camera is ready in Camera Priority mode)');
-      print('[Pixel Shift] ========================================');
-      print('[Pixel Shift] ');
-      print('[Pixel Shift] CAMERA SETUP:');
-      print('[Pixel Shift] 1. Verify these settings on your camera:');
-      print('[Pixel Shift]    - Image Stabilization: OFF');
-      print('[Pixel Shift]    - Shutter Type: ELECTRONIC');
-      print('[Pixel Shift]    - Focus Mode: MANUAL (MF)');
-      print('[Pixel Shift]    - Self-Timer: OFF');
-      print('[Pixel Shift] ');
-      print('[Pixel Shift] 2. Press the SHUTTER BUTTON on your camera');
-      print('[Pixel Shift]    to start the 16-shot Pixel Shift sequence.');
-      print('[Pixel Shift] ');
-      print('[Pixel Shift] 3. Images will be saved to your SD card.');
-      print('[Pixel Shift]    (Buffer overflow avoided - Camera Priority mode)');
-      print('[Pixel Shift] ');
+      print('[Pixel Shift] 🎯 READY - Press the SHUTTER BUTTON on the camera');
       print('[Pixel Shift] ========================================');
 
-      _pixelShiftStateController.add(PixelShiftState(
-        status: PixelShiftStatus.waitingForManualTrigger,
-        message: 'Camera configured for Pixel Shift.\n\n'
-            'Camera is in Camera Priority mode.\n'
-            'Press the shutter button on your camera to start.\n\n'
-            'Required settings:\n'
-            '• Image Stabilization: OFF\n'
-            '• Shutter Type: ELECTRONIC\n'
-            '• Focus Mode: MANUAL\n'
-            '• Self-Timer: OFF',
-        progress: 50,
-      ));
+      // Begin buffer-based transfer AFTER manual shutter
+      if (downloadLocation != null && downloadLocation.isNotEmpty) {
+        final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+        final sequenceFolder = '$downloadLocation${Platform.pathSeparator}PixelShift_$timestamp';
 
-      // Wait for user to complete the sequence
-      await Future.delayed(const Duration(seconds: 60));
-      
-      _pixelShiftStateController.add(PixelShiftState(
-        status: PixelShiftStatus.finished,
-        message: 'If sequence is complete, check your camera\'s SD card for 16 RAF files.\n\n'
-            'Click "Start Capture" again to take another Pixel Shift sequence.',
-        progress: 100,
-        totalImages: 16,
-        imagesTaken: 16,
-      ));
+        _pixelShiftStateController.add(PixelShiftState(
+          status: PixelShiftStatus.downloading,
+          message: 'Transferring RAF files to PC from camera buffer...\n(Sequence running)',
+          progress: 65,
+        ));
+
+        // Expect 16 frames for standard Pixel Shift Multi-Shot
+        final downloadedFiles = await downloadImagesFromBuffer(
+          sequenceFolder,
+          expectedCount: 16,
+          timeout: const Duration(minutes: 6),
+        );
+
+        if (downloadedFiles.isNotEmpty) {
+          print('[Pixel Shift] ✅ Buffer transfer complete: ${downloadedFiles.length} files');
+          // Attempt stitching
+          try {
+            final stitcher = StitchingService();
+            final result = await stitcher.stitchFujiPixelShift(
+              downloadedFiles,
+              outputDir: sequenceFolder,
+              expectedFrames: 16,
+              onProgress: (percent, msg) {
+                _pixelShiftStateController.add(PixelShiftState(
+                  status: PixelShiftStatus.downloading,
+                  message: 'Stitching: ' + msg,
+                  progress: percent,
+                ));
+              },
+            );
+            if (result.success) {
+              print('[Pixel Shift] 🧵 Stitching succeeded: ' + (result.outputPath ?? '')); 
+            } else {
+              print('[Pixel Shift] 🧵 Stitching not completed: ' + (result.error ?? 'Unknown error'));
+            }
+          } catch (e) {
+            print('[Pixel Shift] 🧵 Stitching error: $e');
+          }
+          _pixelShiftStateController.add(PixelShiftState(
+            status: PixelShiftStatus.finished,
+            message: '✅ Pixel Shift Complete!\n\n'
+                'Transferred ${downloadedFiles.length} RAF files to:\n'
+                '$sequenceFolder\n\n'
+                'Files also saved on camera SD card.',
+            progress: 100,
+            totalImages: downloadedFiles.length,
+            imagesTaken: downloadedFiles.length,
+            downloadedFiles: downloadedFiles,
+          ));
+        } else {
+          print('[Pixel Shift] ⚠️ No files received from buffer within timeout');
+          _pixelShiftStateController.add(PixelShiftState(
+            status: PixelShiftStatus.error,
+            message: 'No files received from buffer.\n\n'
+                '• Ensure PC Priority is active\n'
+                '• Try again, or use Browse SD Card to pull files',
+            progress: 100,
+          ));
+        }
+      } else {
+        print('[Pixel Shift] No download location set; skipping PC transfer');
+      }
 
     } catch (e) {
       print('[Pixel Shift] An error occurred during the process: $e');
@@ -847,24 +787,20 @@ class FujifilmCameraService implements CameraService {
     } finally {
       print('--- Resetting camera state ---');
       
-      // Restore original priority mode first (important!)
-      if (needToRestorePriority) {
-        print('[Pixel Shift] Restoring original priority mode...');
-        final restoreResult = FujifilmSDK.xsdkSetPriorityMode(
-          _cameraHandle!,
-          originalPriorityMode,
-        );
-        if (restoreResult != 0) {
-          print('[Warning] Failed to restore priority mode.');
-        } else {
-          print('[Pixel Shift] Priority mode restored.');
-        }
-        await Future.delayed(const Duration(milliseconds: 300));
-      }
+      // Switch back to PC Priority mode
+      print('[Pixel Shift] Switching back to PC Priority mode...');
+      FujifilmSDK.xsdkSetPriorityMode(_cameraHandle!, XSDK_PRIORITY_PC);
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Restore original media record setting
+      print('[Pixel Shift] Restoring original media record setting...');
+      FujifilmSDK.xsdkSetMediaRecord(_cameraHandle!, originalMediaRecord);
       
       // Return to original drive mode
+      print('[Pixel Shift] Restoring original drive mode...');
       FujifilmSDK.xsdkSetDriveMode(_cameraHandle!, originalDriveMode);
-      print('[Pixel Shift] Drive mode restored.');
+      
+      print('[Pixel Shift] ✅ Camera settings restored.');
     }
   }
 
@@ -873,7 +809,6 @@ class FujifilmCameraService implements CameraService {
     print("Clearing camera buffer using 'Read to Delete' strategy...");
 
     final imageInfoPtr = calloc<XSDK_ImageInformation>();
-    final previewSizePtr = calloc<Int32>();
     int clearedImageCount = 0;
 
     try {
@@ -881,7 +816,6 @@ class FujifilmCameraService implements CameraService {
         final result = FujifilmSDK.xsdkReadImageInfo(
           _cameraHandle!,
           imageInfoPtr,
-          previewSizePtr,
         );
 
         if (result != 0 || imageInfoPtr.ref.lFormat == XSDK_IMAGEFORMAT_NONE) {
@@ -901,7 +835,6 @@ class FujifilmCameraService implements CameraService {
 
         // Allocate a temporary buffer to receive the image data, which will be discarded.
         final buffer = calloc<Uint8>(imageSize);
-        final readSizePtr = calloc<Int32>();
 
         try {
           // Reading the image also deletes it from the camera's buffer.
@@ -910,13 +843,11 @@ class FujifilmCameraService implements CameraService {
             _cameraHandle!,
             buffer,
             imageSize,
-            readSizePtr,
           );
           clearedImageCount++;
           print("Attempted to clear image ${clearedImageCount}.");
         } finally {
           calloc.free(buffer);
-          calloc.free(readSizePtr);
         }
       }
 
@@ -930,7 +861,6 @@ class FujifilmCameraService implements CameraService {
       print("An error occurred while clearing the camera buffer: $e");
     } finally {
       calloc.free(imageInfoPtr);
-      calloc.free(previewSizePtr);
     }
   }
 
@@ -942,6 +872,253 @@ class FujifilmCameraService implements CameraService {
     print(
         "Warning: downloadPixelShiftImages() is deprecated. Download starts automatically.",);
     return <String>[];
+  }
+
+  @override
+  Future<List<String>> downloadAllRAFFiles(String destinationFolder) async {
+    _validateSDKInitialized();
+    _validateCameraConnected();
+
+    print('[Download] Starting RAF file download from SD card...');
+    
+    final downloadedFiles = <String>[];
+    
+    try {
+      // Create destination folder if it doesn't exist
+      final destDir = Directory(destinationFolder);
+      if (!await destDir.exists()) {
+        await destDir.create(recursive: true);
+        print('[Download] Created destination folder: $destinationFolder');
+      }
+
+      // Get list of files on SD card
+      final files = await listSDCardFiles();
+      print('[Download] Found ${files.length} total files on SD card');
+
+      // Filter for RAF files
+      final rafFiles = files.where((file) => 
+        !file.isFolder && file.fileName.toUpperCase().endsWith('.RAF')
+      ).toList();
+
+      print('[Download] Found ${rafFiles.length} RAF files to download');
+
+      if (rafFiles.isEmpty) {
+        print('[Download] No RAF files found on SD card');
+        return downloadedFiles;
+      }
+
+      // Download each RAF file
+      int downloadCount = 0;
+      for (final rafFile in rafFiles) {
+        downloadCount++;
+        print('[Download] Downloading $downloadCount/${rafFiles.length}: ${rafFile.fileName}');
+        
+        final destinationPath = '$destinationFolder${Platform.pathSeparator}${rafFile.fileName}';
+        
+        // Update progress
+        final progress = (downloadCount / rafFiles.length * 100).round();
+        _pixelShiftStateController.add(PixelShiftState(
+          status: PixelShiftStatus.downloading,
+          message: 'Downloading ${rafFile.fileName}...',
+          progress: progress,
+          imagesTaken: downloadCount,
+          totalImages: rafFiles.length,
+        ));
+
+        final success = await downloadFileFromSDCard(rafFile.index, destinationPath);
+        
+        if (success) {
+          downloadedFiles.add(destinationPath);
+          print('[Download] ✅ Successfully downloaded: ${rafFile.fileName}');
+        } else {
+          print('[Download] ❌ Failed to download: ${rafFile.fileName}');
+        }
+
+        // Small delay to prevent overwhelming the camera
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
+      print('[Download] Download complete! Downloaded ${downloadedFiles.length} files to $destinationFolder');
+      return downloadedFiles;
+    } catch (e) {
+      print('[Download] Error downloading RAF files: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<String>> downloadImagesFromBuffer(
+    String destinationFolder, {
+    int expectedCount = 16,
+    Duration timeout = const Duration(minutes: 5),
+  }) async {
+    _validateSDKInitialized();
+    _validateCameraConnected();
+
+    print('[Buffer Download] Starting dynamic image download from camera buffer...');
+    print('[Buffer Download] Expecting $expectedCount images, timeout: ${timeout.inSeconds}s');
+    
+    final downloadedFiles = <String>[];
+    final startTime = DateTime.now();
+    int imageIndex = 1;
+    bool captureStarted = false;
+    int consecutiveFailures = 0;
+    const maxConsecutiveFailures = 3;
+    
+    try {
+      // Create destination folder if it doesn't exist
+      final destDir = Directory(destinationFolder);
+      if (!await destDir.exists()) {
+        await destDir.create(recursive: true);
+        print('[Buffer Download] Created destination folder: $destinationFolder');
+      }
+
+      print('[Buffer Download] ⏳ Waiting for user to press shutter button...');
+      
+      // Poll for images until we have all expected images or timeout
+      while (downloadedFiles.length < expectedCount) {
+        // Check timeout
+        if (DateTime.now().difference(startTime) > timeout) {
+          print('[Buffer Download] ⏱️ Timeout reached after ${timeout.inSeconds}s');
+          break;
+        }
+
+        // Check if image is available in buffer
+        final imageInfoPtr = malloc<XSDK_ImageInformation>();
+        
+        try {
+          final result = FujifilmSDK.xsdkReadImageInfo(
+            _cameraHandle!,
+            imageInfoPtr,
+          );
+
+          if (result == 0 && imageInfoPtr.ref.lFormat != XSDK_IMAGEFORMAT_NONE) {
+            final imageSize = imageInfoPtr.ref.lDataSize;
+            if (imageSize > 0 && imageSize < 8 * 1024 * 1024) {
+              print('[Buffer Download] ⚠️ SDK reported very small size (${imageSize}B). Will still attempt read.');
+            }
+            if (imageSize > 600 * 1024 * 1024) {
+              print('[Buffer Download] ⚠️ SDK reported huge size (${imageSize}B). Clamping to 600MB to avoid buffer over-alloc.');
+            }
+            
+            if (!captureStarted) {
+              captureStarted = true;
+              print('[Buffer Download] 🎬 Capture started! First image detected');
+              _pixelShiftStateController.add(PixelShiftState(
+                status: PixelShiftStatus.capturing,
+                message: 'Pixel shift in progress...\nDownloading images as they\'re captured',
+                progress: 50,
+              ));
+            }
+            
+            // Image is available!
+            print('[Buffer Download] 📸 Image ${downloadedFiles.length + 1}/$expectedCount available (reported size: ${imageSize} bytes)');
+
+            // Update progress
+            final progress = 50 + ((downloadedFiles.length / expectedCount) * 50).round();
+            _pixelShiftStateController.add(PixelShiftState(
+              status: PixelShiftStatus.downloading,
+              message: 'Downloading image ${downloadedFiles.length + 1}/$expectedCount...',
+              progress: progress,
+              imagesTaken: downloadedFiles.length + 1,
+              totalImages: expectedCount,
+            ));
+
+            // Use SDK-reported lDataSize exactly; skip only if invalid
+            print('[Buffer Download] 📊 SDK-reported size: $imageSize bytes');
+            if (imageSize <= 0) {
+              print('[Buffer Download] ⚠️ Invalid size (≤0), skipping...');
+              await Future.delayed(const Duration(seconds: 2));
+              continue;
+            }
+
+            // Allocate exact buffer size per SDK
+            final bufferSize = imageSize.clamp(1, 600 * 1024 * 1024);
+            Pointer<Uint8>? imageBuffer;
+
+            try {
+              imageBuffer = malloc<Uint8>(bufferSize);
+
+              // Read the image from buffer (this also removes it from buffer)
+              final readResult = FujifilmSDK.xsdkReadImage(
+                _cameraHandle!,
+                imageBuffer,
+                bufferSize,
+              );
+
+              // Check for "camera busy" error (36865)
+              if (readResult != 0) {
+                final errorDetails = _getSDKErrorDetails(_cameraHandle);
+                
+                // Error code 36865 typically means camera is busy/not ready
+                if (errorDetails.contains('36865')) {
+                  print('[Buffer Download] ⏳ Camera busy, image not ready yet. Waiting...');
+                  await Future.delayed(const Duration(seconds: 3));
+                  continue;
+                }
+                
+                print('[Buffer Download] ❌ Failed to read image: $errorDetails (result: $readResult)');
+                consecutiveFailures++;
+                
+                if (consecutiveFailures >= maxConsecutiveFailures) {
+                  print('[Buffer Download] ⚠️ Too many consecutive failures, waiting longer...');
+                  await Future.delayed(const Duration(seconds: 5));
+                  consecutiveFailures = 0;
+                } else {
+                  await Future.delayed(const Duration(seconds: 2));
+                }
+                continue;
+              }
+
+              final actualSize = bufferSize; // ReadImage has no out-size param
+              
+              // Successfully read a reasonable-sized file
+              final fileName = 'DSCF${imageIndex.toString().padLeft(4, '0')}.RAF';
+              final filePath = '$destinationFolder${Platform.pathSeparator}$fileName';
+              
+              final file = File(filePath);
+              await file.writeAsBytes(imageBuffer.asTypedList(actualSize));
+              
+              downloadedFiles.add(filePath);
+              imageIndex++;
+              consecutiveFailures = 0; // Reset failure counter
+              
+              print('[Buffer Download] ✅ Downloaded: $fileName ($actualSize bytes)');
+              
+              // Brief pause before checking for next image
+              await Future.delayed(const Duration(milliseconds: 1500));
+              
+            } catch (e) {
+              print('[Buffer Download] ⚠️ Exception during read: $e');
+              await Future.delayed(const Duration(seconds: 3));
+            } finally {
+              if (imageBuffer != null) malloc.free(imageBuffer);
+            }
+          } else {
+            // No image available yet
+            if (!captureStarted) {
+              // Still waiting for user to press shutter - check less frequently
+              await Future.delayed(const Duration(seconds: 3));
+            } else {
+              // Capture started, waiting for next image
+              await Future.delayed(const Duration(seconds: 2));
+            }
+          }
+        } finally {
+          malloc.free(imageInfoPtr);
+        }
+      }
+
+      if (downloadedFiles.isEmpty && !captureStarted) {
+        print('[Buffer Download] ⚠️ No capture was initiated - user may not have pressed shutter');
+      }
+
+      print('[Buffer Download] ✅ Download complete! Downloaded ${downloadedFiles.length} images to $destinationFolder');
+      return downloadedFiles;
+    } catch (e) {
+      print('[Buffer Download] ❌ Error downloading from buffer: $e');
+      rethrow;
+    }
   }
 
   @override
@@ -1010,6 +1187,158 @@ class FujifilmCameraService implements CameraService {
       return true;
     } finally {
       malloc.free(dataPtr);
+    }
+  }
+
+  @override
+  Future<bool> takeTestShot() async {
+    _validateSDKInitialized();
+    _validateCameraConnected();
+
+    print('[Test Shot] Taking single test shot...');
+
+    final shotOptPtr = malloc<Int32>();
+    final statusPtr = malloc<Int32>();
+
+    try {
+      shotOptPtr.value = 1; // Single shot
+
+      // Use standard shutter release in Camera Priority mode
+      final releaseResult = FujifilmSDK.xsdkReleaseEx(
+        _cameraHandle!,
+        XSDK_RELEASE_SHOOT_S1OFF,
+        shotOptPtr,
+        statusPtr,
+      );
+
+      if (releaseResult == 0) {
+        print('[Test Shot] ✅ Test shot captured successfully');
+        return true;
+      } else {
+        final errorDetails = _getSDKErrorDetails(_cameraHandle);
+        print('[Test Shot] ❌ Failed: $errorDetails');
+        return false;
+      }
+    } finally {
+      malloc.free(shotOptPtr);
+      malloc.free(statusPtr);
+    }
+  }
+
+  @override
+  Future<List<SDCardFile>> listSDCardFiles() async {
+    _validateSDKInitialized();
+    _validateCameraConnected();
+
+    print('[SD Card] Listing files on SD card...');
+
+    final numContentsPtr = malloc<Int32>();
+    final files = <SDCardFile>[];
+
+    try {
+      // Get number of files on SD card
+      final result = FujifilmSDK.xsdkGetNumContents(_cameraHandle!, numContentsPtr);
+      
+      if (result != 0) {
+        final errorDetails = _getSDKErrorDetails(_cameraHandle);
+        print('[SD Card] Failed to get file count. Error: $errorDetails');
+        return files;
+      }
+
+      final numContents = numContentsPtr.value;
+      print('[SD Card] Found $numContents files');
+
+      // Get info for each file
+      for (int i = 0; i < numContents; i++) {
+        final contentInfoPtr = malloc<XSDK_ContentInformation>();
+        
+        try {
+          final infoResult = FujifilmSDK.xsdkGetContentInfo(
+            _cameraHandle!,
+            i,
+            contentInfoPtr,
+          );
+
+          if (infoResult == 0) {
+            final fileName = convertUint8ArrayToString(contentInfoPtr.ref.strFileName);
+            final fileSize = contentInfoPtr.ref.lFileSize;
+            final isFolder = contentInfoPtr.ref.bIsFolder;
+
+            files.add(SDCardFile(
+              index: i,
+              fileName: fileName,
+              fileSize: fileSize,
+              isFolder: isFolder,
+            ));
+          }
+        } finally {
+          malloc.free(contentInfoPtr);
+        }
+      }
+
+      print('[SD Card] Successfully listed ${files.length} files');
+      return files;
+    } finally {
+      malloc.free(numContentsPtr);
+    }
+  }
+
+  @override
+  Future<bool> downloadFileFromSDCard(int fileIndex, String destinationPath) async {
+    _validateSDKInitialized();
+    _validateCameraConnected();
+
+    print('[SD Card] Downloading file index $fileIndex to $destinationPath');
+
+    // First get file info to determine size
+    final contentInfoPtr = malloc<XSDK_ContentInformation>();
+    
+    try {
+      final infoResult = FujifilmSDK.xsdkGetContentInfo(
+        _cameraHandle!,
+        fileIndex,
+        contentInfoPtr,
+      );
+
+      if (infoResult != 0) {
+        final errorDetails = _getSDKErrorDetails(_cameraHandle);
+        print('[SD Card] Failed to get file info. Error: $errorDetails');
+        return false;
+      }
+
+      final fileSize = contentInfoPtr.ref.lFileSize;
+      final fileName = convertUint8ArrayToString(contentInfoPtr.ref.strFileName);
+      print('[SD Card] Downloading $fileName ($fileSize bytes)...');
+
+      // Allocate buffer for file data
+      final bufferPtr = malloc<Uint8>(fileSize);
+
+      try {
+        // Download file data
+        final downloadResult = FujifilmSDK.xsdkGetContentData(
+          _cameraHandle!,
+          fileIndex,
+          bufferPtr,
+          fileSize,
+        );
+
+        if (downloadResult != 0) {
+          final errorDetails = _getSDKErrorDetails(_cameraHandle);
+          print('[SD Card] Failed to download file. Error: $errorDetails');
+          return false;
+        }
+
+        // Write to destination file
+        final file = File(destinationPath);
+        await file.writeAsBytes(bufferPtr.asTypedList(fileSize));
+
+        print('[SD Card] ✅ Successfully downloaded to $destinationPath');
+        return true;
+      } finally {
+        malloc.free(bufferPtr);
+      }
+    } finally {
+      malloc.free(contentInfoPtr);
     }
   }
 
