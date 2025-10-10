@@ -43,22 +43,62 @@ struct ScopedLibRaw {
   ~ScopedLibRaw() { raw.recycle(); }
 };
 
-// Decode RAF -> cv::Mat (float32 linear RGB, [0..1]) using LibRaw processed image
+// Forward declarations (full types appear later in file)
+struct CFAInfo;
+struct Levels;
+static CFAInfo detect_cfa(LibRaw& raw);
+static Levels get_levels(const LibRaw& raw, const CFAInfo& cfa);
+static inline int bayer_color_at(const LibRaw& raw, const CFAInfo& cfa, int row, int col);
+
+// Decode RAF -> cv::Mat (float32 linear RGB, [0..1])
 static bool decode_raf_to_float(const char* path, cv::Mat& out, std::string& err) {
   LibRaw raw;
-  // Safer processing parameters
-  raw.imgdata.params.output_bps = 16;
-  raw.imgdata.params.no_auto_bright = 1;
-  raw.imgdata.params.use_camera_wb = 1;
-  raw.imgdata.params.output_color = 1; // sRGB
-
   int rc = raw.open_file(path);
   if (rc != LIBRAW_SUCCESS) { err = std::string("LibRaw open failed: ") + libraw_strerror(rc); return false; }
   rc = raw.unpack();
   if (rc != LIBRAW_SUCCESS) { err = std::string("LibRaw unpack failed: ") + libraw_strerror(rc); raw.recycle(); return false; }
+
+  // Try fast Bayer demosaic path to avoid processed pipeline crashes
+  CFAInfo cfa = detect_cfa(raw);
+  if (cfa.is_bayer) {
+    const int w = raw.imgdata.sizes.iwidth;
+    const int h = raw.imgdata.sizes.iheight;
+    const int top = raw.imgdata.sizes.top_margin;
+    const int left = raw.imgdata.sizes.left_margin;
+    const int pitch = raw.imgdata.sizes.raw_width;
+    unsigned short* data = raw.imgdata.rawdata.raw_image;
+    if (!data) { err = "LibRaw raw_image is null"; raw.recycle(); return false; }
+    Levels lv = get_levels(raw, cfa);
+
+    cv::Mat mosaic16(h, w, CV_16U);
+    for (int y = 0; y < h; ++y) {
+      unsigned short* pm = mosaic16.ptr<unsigned short>(y);
+      const int srcRow = (y + top) * pitch + left;
+      for (int x = 0; x < w; ++x) {
+        const unsigned short rv = data[srcRow + x];
+        const int cidx = bayer_color_at(raw, cfa, y, x);
+        const float black = lv.black[cidx];
+        float norm = (float(rv) - black) / (std::max)(1.0f, lv.white - black);
+        if (norm < 0.f) norm = 0.f; if (norm > 1.f) norm = 1.f;
+        pm[x] = (unsigned short)std::lround(norm * 65535.0f);
+      }
+    }
+    cv::Mat dem16;
+    cv::demosaicing(mosaic16, dem16, cfa.cv_bayer_code);
+    cv::Mat demF;
+    dem16.convertTo(demF, CV_32FC3, 1.0 / 65535.0);
+    cv::cvtColor(demF, out, cv::COLOR_BGR2RGB);
+    raw.recycle();
+    return true;
+  }
+
+  // Fallback to LibRaw processed pipeline (e.g., X-Trans)
+  raw.imgdata.params.output_bps = 16;
+  raw.imgdata.params.no_auto_bright = 1;
+  raw.imgdata.params.use_camera_wb = 1;
+  raw.imgdata.params.output_color = 1; // sRGB
   rc = raw.dcraw_process();
   if (rc != LIBRAW_SUCCESS) { err = std::string("LibRaw process failed: ") + libraw_strerror(rc); raw.recycle(); return false; }
-
   libraw_processed_image_t* img = raw.dcraw_make_mem_image(&rc);
   if (!img || rc != LIBRAW_SUCCESS) { err = std::string("LibRaw make_mem_image failed: ") + libraw_strerror(rc); raw.recycle(); return false; }
   if (img->type != LIBRAW_IMAGE_BITMAP || img->bits != 16 || img->colors != 3) {
@@ -67,11 +107,10 @@ static bool decode_raf_to_float(const char* path, cv::Mat& out, std::string& err
     raw.recycle();
     return false;
   }
-
-  // Wrap and copy to our own buffer to avoid lifetime issues
   cv::Mat mat16(img->height, img->width, CV_16UC3, img->data);
-  mat16.convertTo(out, CV_32FC3, 1.0 / 65535.0);
-
+  cv::Mat tmpF;
+  mat16.convertTo(tmpF, CV_32FC3, 1.0 / 65535.0);
+  cv::cvtColor(tmpF, out, cv::COLOR_BGR2RGB);
   raw.dcraw_clear_mem(img);
   raw.recycle();
   return true;

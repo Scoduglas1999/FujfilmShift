@@ -4,22 +4,22 @@ import 'package:window_manager/window_manager.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 
 class WindowSizeService {
-  static const double _minWindowWidth = 800.0;
-  static const double _minWindowHeight = 600.0;
-  static const double _maxWindowWidth = 1920.0;
-  static const double _maxWindowHeight = 1080.0;
+  static const double _minWindowWidth = 800;
+  static const double _minWindowHeight = 600;
+  static const double _maxWindowWidth = 1920;
+  static const double _maxWindowHeight = 1080;
 
   // Content dimensions based on UI layout analysis
-  static const double _homePageContentWidth = 1200.0;
-  static const double _homePageContentHeight = 900.0;
-  static const double _cameraPageContentWidth = 1400.0;
-  static const double _cameraPageContentHeight = 800.0;
-  static const double _settingsPageContentWidth = 1000.0;
-  static const double _settingsPageContentHeight = 700.0;
+  static const double _homePageContentWidth = 1200;
+  static const double _homePageContentHeight = 900;
+  static const double _cameraPageContentWidth = 1400;
+  static const double _cameraPageContentHeight = 800;
+  static const double _settingsPageContentWidth = 1000;
+  static const double _settingsPageContentHeight = 700;
 
   // Padding and margins
-  static const double _windowPadding = 32.0;
-  static const double _appBarHeight = 64.0;
+  static const double _windowPadding = 32;
+  static const double _appBarHeight = 64;
 
   static Future<void> initialize() async {
     await windowManager.ensureInitialized();

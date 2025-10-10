@@ -17,7 +17,7 @@ void main() async {
 
   runApp(
     ProviderScope(
-      overrides: [
+      overrides: <Override>[
         sharedPreferencesProvider.overrideWithValue(prefs),
       ],
       child: const FujifilmShiftApp(),

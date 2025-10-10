@@ -1,13 +1,13 @@
-import "package:flutter/material.dart";
-import "package:flutter_riverpod/flutter_riverpod.dart";
-import "package:shared_preferences/shared_preferences.dart";
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
+final Provider<SharedPreferences> sharedPreferencesProvider = Provider<SharedPreferences>((ProviderRef<SharedPreferences> ref) {
   throw UnimplementedError();
 });
 
-final themeProvider = StateNotifierProvider<ThemeNotifier, ThemeMode>((ref) {
-  var prefs = ref.watch(sharedPreferencesProvider);
+final StateNotifierProvider<ThemeNotifier, ThemeMode> themeProvider = StateNotifierProvider<ThemeNotifier, ThemeMode>((StateNotifierProviderRef<ThemeNotifier, ThemeMode> ref) {
+  SharedPreferences prefs = ref.watch(sharedPreferencesProvider);
   return ThemeNotifier(prefs);
 });
 
@@ -18,10 +18,10 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
   }
   final SharedPreferences _prefs;
 
-  static const String _themeKey = "theme_mode";
+  static const String _themeKey = 'theme_mode';
 
   Future<void> _loadTheme() async {
-    var themeIndex = _prefs.getInt(_themeKey) ?? ThemeMode.system.index;
+    int themeIndex = _prefs.getInt(_themeKey) ?? ThemeMode.system.index;
     state = ThemeMode.values[themeIndex];
   }
 
@@ -31,7 +31,7 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
   }
 
   void toggleTheme() {
-    var currentTheme = state;
+    ThemeMode currentTheme = state;
     ThemeMode newTheme;
 
     switch (currentTheme) {

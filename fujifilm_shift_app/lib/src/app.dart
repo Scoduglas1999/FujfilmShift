@@ -52,16 +52,16 @@ class _FujifilmShiftAppState extends ConsumerState<FujifilmShiftApp> with Window
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
       home: const HomePage(),
-      navigatorObservers: [_WindowSizeObserver(_onRouteChanged)],
+      navigatorObservers: <NavigatorObserver>[_WindowSizeObserver(_onRouteChanged)],
       routes: <String, Widget Function(BuildContext)>{
-        '/home': (context) => const HomePage(),
-        '/camera': (context) => const CameraDashboardPage(),
-        '/settings': (context) => const SettingsPage(),
+        '/home': (BuildContext context) => const HomePage(),
+        '/camera': (BuildContext context) => const CameraDashboardPage(),
+        '/settings': (BuildContext context) => const SettingsPage(),
       },
-      onGenerateRoute: (settings) {
+      onGenerateRoute: (RouteSettings settings) {
         if (settings.name == '/camera') {
           return MaterialPageRoute(
-            builder: (context) => const CameraDashboardPage(),
+            builder: (BuildContext context) => const CameraDashboardPage(),
           );
         }
         return null;
@@ -87,9 +87,9 @@ class _FujifilmShiftAppState extends ConsumerState<FujifilmShiftApp> with Window
 }
 
 class _WindowSizeObserver extends NavigatorObserver {
-  final Function(String) onRouteChanged;
 
   _WindowSizeObserver(this.onRouteChanged);
+  final Function(String) onRouteChanged;
 
   @override
   void didPush(Route route, Route? previousRoute) {
